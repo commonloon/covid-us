@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>US Covid Charts</title>
+    <script>
+        const states = {{ states|tojson }};
+        var data = {{ data|tojson }};
+    </script>
+</head>
+<body>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <h2 style="font-family: sans-serif;">
+        <a href="https://covidtracking.com/data/api">Source data</a> last updated {{ last_day }}
+    </h2>
+
+    <table>
+        <tr>
+{% for state in states %}
+    <td><div id="{{ state }}">placeholder</div></td>
+{% if loop.index is divisibleby 4 %}
+</tr><tr>
+{% endif %}
+{% endfor %}
+        </tr>
+    </table>
+    <script>
+        function graph(state, covid) {
+            var divname = "div#".concat(state);
+            var casecolor = "#a94352";
+            var deathcolor = "#69b3a2";
+            var myColor = {
+                "positiveIncrease": casecolor,
+                "ncases7day": casecolor,
+                "deathIncrease": deathcolor,
+                "ndeaths7day": deathcolor
+            };
+            try {
+                // convert "day" values to javascript date
+                covid = covid.map(function (row, idx, arr) {
+                    row.day = Date.parse(row.day);
+                    return row;
+                });
+                //console.log(covid);
+
+                // label the div with the name of the US state whose data we're processing
+                d3.select(divname).text("").attr("text-anchor", "center");
+
+                // set the dimensions and margins of the graph
+                var margin = {top: 10, right: 30, bottom: 30, left: 60},
+                    width = 560 - margin.left - margin.right,
+                    height = 400 - margin.top - margin.bottom;
+
+                // insert an SVG object into the div to hold our plot
+                var svg = d3.select(divname)
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                // Add X axis (range of dates in the data)
+                var x = d3.scaleTime()
+                    .domain(d3.extent(covid.map(d => d.day)))
+                    .range([0, width]);
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x));
+
+                // Add Y axis for new case data
+                var y = d3.scaleLinear()
+                    .domain(d3.extent(covid.map(d => d.positiveIncrease)))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisLeft(y))
+                    .style("fill", casecolor);
+                // add Y axis for death data
+                var yd = d3.scaleLinear()
+                    .domain(d3.extent(covid.map(d => d.deathIncrease)))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisRight(yd))
+                    .attr("transform", "translate("+width+",0)")
+                    .style("fill", deathcolor);
+                // Add labels for the Y axes
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .style("font-family","sans-serif")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 20)
+                    .attr("x", 0)
+                    .text("New Cases")
+                    .style("fill", casecolor);
+                svg.append("text")
+                    .attr("text-anchor", "start")
+                    .attr("transform", "rotate(90)")
+                    .attr("y", -width + 20)
+                    .attr("x", 0)
+                    .text("New Deaths")
+                    .style("font-family","sans-serif")
+                    .style("fill", deathcolor);
+                // Add chart title
+                svg.append("text")
+                    .attr("text-anchor", "center")
+                    .attr("y", margin.top)
+                    .attr("x", width/2)
+                    .text(state)
+                    .style("font-family","sans-serif")
+                    .style("fill", "black");
+
+                // Add scatter plot of new cases
+                svg.append('g')
+                    .selectAll("dot")
+                    .data(covid)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function (d) {
+                        return x(d.day);
+                    })
+                    .attr("cy", function (d) {
+                        return y(d.positiveIncrease);
+                    })
+                    .attr("r", 1.5)
+                    .style("fill", casecolor);
+
+                // add line plot of moving average
+                svg.append("path")
+                  .datum(covid)
+                  .attr("fill", "none")
+                  .attr("stroke", casecolor)
+                  .attr("stroke-width", 1.5)
+                  .attr("d", d3.line()
+                          .defined(d => !isNaN(d.ncases7day))
+                          .x(d => x(d.day))
+                          .y(d => y(d.ncases7day))
+                    );
+                // Add scatter plot of new deaths
+                svg.append('g')
+                    .selectAll("dot")
+                    .data(covid)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function (d) {
+                        return x(d.day);
+                    })
+                    .attr("cy", function (d) {
+                        return yd(d.deathIncrease);
+                    })
+                    .attr("r", 1.5)
+                    .style("fill", deathcolor);
+
+                // add line plot of moving average
+                svg.append("path")
+                  .datum(covid)
+                  .attr("fill", "none")
+                  .attr("stroke", deathcolor)
+                  .attr("stroke-width", 1.5)
+                  .attr("d", d3.line()
+                          .defined(d => !isNaN(d.ncases7day))
+                          .x(d => x(d.day))
+                          .y(d => yd(d.ndeaths7day))
+                    );
+
+                // Add a legend at the end of each line
+{#                svg
+                    .selectAll("myLabels")
+                    .data(dataReady)
+                    .enter()
+                    .append('g')
+                    .append("text")
+                    .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; }) // keep only the last value of each time series
+                    .attr("transform", function(d) { return "translate(" + x(d.value.time) + "," + y(d.value.value) + ")"; }) // Put the text at the position of the last point
+                    .attr("x", 12) // shift the text a bit more right
+                    .text(function(d) { return d.name; })
+                    .style("fill", function(d){ return myColor(d.name) })
+                    .style("font-size", 15)#}
+            }
+            catch(err) {
+                d3.select(divname).text(state.concat("\n", err));
+            }
+
+        }
+        states.forEach(
+            state => graph(state, data[state])
+        );
+
+    </script>
+
+
+
+    <! d3.json(“/get-data”, function(error, root){
+partition.nodes(root);
+x.domain([0, root.value]).nice();
+down(root, 0);});>
+</body>
+</html>
