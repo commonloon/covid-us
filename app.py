@@ -19,6 +19,7 @@ def home():
     df['day'] = pd.to_datetime(df['date'].apply(str))
     df = df[::-1]
     df['positiveFraction'] = df.positiveIncrease / df.totalTestResultsIncrease
+    df['deathIncrease'].clip(-1, inplace=True)  # discard negative values of deathIncrease
 
     # There are many erroneous reports of zero or fewer new cases, so for now we drop them.
     # I'm uncomfortable with this long term, as states with low absolute numbers could legitimately
