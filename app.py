@@ -24,7 +24,7 @@ def home():
     # There are many erroneous reports of zero or fewer new cases, so for now we drop them.
     # I'm uncomfortable with this long term, as states with low absolute numbers could legitimately
     # report zero new cases per day.  But as of June 15, very few states could legitimately have 0 new cases per day.
-    df.drop(df[(df["positiveIncrease"] <= 0)].index, inplace=True)
+    df.drop(df[(df["positiveIncrease"] < 0)].index, inplace=True)
 
     last_day = max(df.date)
 
