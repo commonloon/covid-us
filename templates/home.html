@@ -14,7 +14,12 @@
         <a href="https://covidtracking.com/data/api">Source data</a> last updated {{ last_day }}
     </h2>
     <p>NOTE: Negative values of positiveIncrease or deathIncrease were discarded before making these plots</p>
-    <p>The lines show 7 day moving averages.</p>
+    <p>The lines show 7 day moving averages, while points show the raw data.</p>
+
+    <select id="select_view" onchange="display_selected()">
+        <option value="cases">New Cases and Deaths</option>
+        <option value="results"># of Test Results and Positive Fraction</option>
+    </select>
 
     <table>
         <tr>
@@ -27,23 +32,13 @@
         </tr>
     </table>
     <script>
-        function graph(state, covid) {
+        function graph(state, covid, p1, l1, p2, l2, label1, label2) {
             var divname = "div#".concat(state);
-            var casecolor = "#a94352";
-            var deathcolor = "#69b3a2";
-            var myColor = {
-                "positiveIncrease": casecolor,
-                "ncases7day": casecolor,
-                "deathIncrease": deathcolor,
-                "ndeaths7day": deathcolor
-            };
+            var firstcolor = "#a94352";
+            var secondcolor = "#69b3a2";
+
             try {
-                // convert "day" values to javascript date
-                covid = covid.map(function (row, idx, arr) {
-                    row.day = Date.parse(row.day);
-                    return row;
-                });
-                //console.log(covid);
+
 
                 // label the div with the name of the US state whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
@@ -72,43 +67,43 @@
 
                 // Add Y axis for new case data
                 var y = d3.scaleLinear()
-                    .domain(d3.extent(covid.map(d => d.positiveIncrease)))
+                    .domain(d3.extent(covid.map(d => d[p1])))
                     .range([height, 0]);
                 svg.append("g")
                     .call(d3.axisLeft(y))
-                    .style("fill", casecolor);
+                    .style("fill", firstcolor);
                 // add Y axis for death data
                 var yd = d3.scaleLinear()
-                    .domain(d3.extent(covid.map(d => d.deathIncrease)))
+                    .domain(d3.extent(covid.map(d => d[p2])))
                     .range([height, 0]);
                 svg.append("g")
                     .call(d3.axisRight(yd))
-                    .attr("transform", "translate("+width+",0)")
-                    .style("fill", deathcolor);
+                    .attr("transform", "translate(" + width + ",0)")
+                    .style("fill", secondcolor);
                 // Add labels for the Y axes
                 svg.append("text")
                     .attr("text-anchor", "end")
-                    .style("font-family","sans-serif")
+                    .style("font-family", "sans-serif")
                     .attr("transform", "rotate(-90)")
                     .attr("y", 20)
                     .attr("x", 0)
-                    .text("New Cases")
-                    .style("fill", casecolor);
+                    .text(label1)
+                    .style("fill", firstcolor);
                 svg.append("text")
                     .attr("text-anchor", "start")
                     .attr("transform", "rotate(90)")
                     .attr("y", -width + 20)
                     .attr("x", 0)
-                    .text("New Deaths")
-                    .style("font-family","sans-serif")
-                    .style("fill", deathcolor);
+                    .text(label2)
+                    .style("font-family", "sans-serif")
+                    .style("fill", secondcolor);
                 // Add chart title
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
-                    .attr("x", width/2)
+                    .attr("x", width / 2)
                     .text(state)
-                    .style("font-family","sans-serif")
+                    .style("font-family", "sans-serif")
                     .style("fill", "black");
 
                 // Add scatter plot of new cases
@@ -121,21 +116,21 @@
                         return x(d.day);
                     })
                     .attr("cy", function (d) {
-                        return y(d.positiveIncrease);
+                        return y(d[p1]);
                     })
                     .attr("r", 1.5)
-                    .style("fill", casecolor);
+                    .style("fill", firstcolor);
 
                 // add line plot of moving average
                 svg.append("path")
-                  .datum(covid)
-                  .attr("fill", "none")
-                  .attr("stroke", casecolor)
-                  .attr("stroke-width", 1.5)
-                  .attr("d", d3.line()
-                          .defined(d => !isNaN(d.ncases7day))
-                          .x(d => x(d.day))
-                          .y(d => y(d.ncases7day))
+                    .datum(covid)
+                    .attr("fill", "none")
+                    .attr("stroke", firstcolor)
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .defined(d => !isNaN(d[l1]))
+                        .x(d => x(d.day))
+                        .y(d => y(d[l1]))
                     );
                 // Add scatter plot of new deaths
                 svg.append('g')
@@ -147,53 +142,60 @@
                         return x(d.day);
                     })
                     .attr("cy", function (d) {
-                        return yd(d.deathIncrease);
+                        return yd(d[p2]);
                     })
                     .attr("r", 1.5)
-                    .style("fill", deathcolor);
+                    .style("fill", secondcolor);
 
                 // add line plot of moving average
                 svg.append("path")
-                  .datum(covid)
-                  .attr("fill", "none")
-                  .attr("stroke", deathcolor)
-                  .attr("stroke-width", 1.5)
-                  .attr("d", d3.line()
-                          .defined(d => !isNaN(d.ncases7day))
-                          .x(d => x(d.day))
-                          .y(d => yd(d.ndeaths7day))
+                    .datum(covid)
+                    .attr("fill", "none")
+                    .attr("stroke", secondcolor)
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .defined(d => !isNaN(d[l1]))
+                        .x(d => x(d.day))
+                        .y(d => yd(d[l2]))
                     );
-
-                // Add a legend at the end of each line
-{#                svg
-                    .selectAll("myLabels")
-                    .data(dataReady)
-                    .enter()
-                    .append('g')
-                    .append("text")
-                    .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; }) // keep only the last value of each time series
-                    .attr("transform", function(d) { return "translate(" + x(d.value.time) + "," + y(d.value.value) + ")"; }) // Put the text at the position of the last point
-                    .attr("x", 12) // shift the text a bit more right
-                    .text(function(d) { return d.name; })
-                    .style("fill", function(d){ return myColor(d.name) })
-                    .style("font-size", 15)#}
             }
             catch(err) {
-                d3.select(divname).text(state.concat("\n", err));
+                d3.select(divname).text(state.concat("<br>", err));
             }
 
         }
-        states.forEach(
-            state => graph(state, data[state])
-        );
+        function display_selected() {
+            var view = document.getElementById("select_view").value;
+            if (view == "cases") {
+                states.forEach(
+                    state => graph(state, data[state],
+                        "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
+                        "New Cases", "New Deaths"
+                    )
+                );
+            } else if (view == "results") {
+                states.forEach(
+                    state => graph(state, data[state],
+                        "totalTestResultsIncrease", "nresults7day", "positiveFraction", "pf7day",
+                        "# of new test results", "positive fraction"
+                    )
+                );
+            }
+        }
 
+        // convert "day" values to javascript date.  We need to do this only once.
+        states.forEach(
+            function (state) {
+                var ss = data[state];
+                ss = ss.map(function (row, idx, arr) {
+                    row.day = Date.parse(row.day);
+                    return row;
+                });
+            }
+        )
+        
+        display_selected();
     </script>
 
-
-
-    <! d3.json(“/get-data”, function(error, root){
-partition.nodes(root);
-x.domain([0, root.value]).nice();
-down(root, 0);});>
 </body>
 </html>

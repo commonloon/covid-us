@@ -20,6 +20,8 @@ def home():
     df = df[::-1]
     df['positiveFraction'] = df.positiveIncrease / df.totalTestResultsIncrease
     df['deathIncrease'].clip(-1, inplace=True)  # discard negative values of deathIncrease
+    df['totalTestResultsIncrease'].clip(-1, inplace=True)  # discard negative values of totalTestResultsIncrease
+    df['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
 
     # There are many erroneous reports of zero or fewer new cases, so for now we drop them.
     # I'm uncomfortable with this long term, as states with low absolute numbers could legitimately
@@ -35,6 +37,8 @@ def home():
 
         s['ncases7day'] = s.positiveIncrease.rolling(7).mean()
         s['ndeaths7day'] = s.deathIncrease.rolling(7).mean()
+        s['nresults7day'] = s.totalTestResultsIncrease.rolling(7).mean()
+        s['pf7day'] = s.positiveFraction.rolling(7).mean()
         s['day'] = s['day'].dt.strftime('%Y-%m-%d')
 
         data[state] = s.to_dict(orient='records')
