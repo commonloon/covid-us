@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>US Covid Charts</title>
+    <title>Canada Covid Charts</title>
     <script>
-        const states = {{ states|tojson }};
+        const provinces = {{ provinces|tojson }};
         var data = {{ data|tojson }};
     </script>
 </head>
+
 <body>
     <script src="https://d3js.org/d3.v6.min.js"></script>
+    <h1>Covid Data for Canada</h1>
+    <p><a href="/dev/us">Click here to see US charts</a></p>
     <h2 style="font-family: sans-serif;">
-        <a href="https://covidtracking.com/data/api">Source data</a> last updated {{ last_day }}
+        <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
     </h2>
-    <p>NOTE: Negative values of positiveIncrease or deathIncrease were discarded before making these plots</p>
     <p>The lines show 7 day moving averages, while points show the raw data.</p>
 
     <select id="select_view" onchange="display_selected()">
@@ -22,31 +26,26 @@
     </select>
 
     <table>
-        <tr>
-{% for state in states %}
-    <td><div id="{{ state }}">placeholder</div></td>
-{% if loop.index is divisibleby 4 %}
-</tr><tr>
-{% endif %}
+{% for prov in provinces %}
+    <tr><td><div id="{{ prov }}">placeholder</div></td></tr>
 {% endfor %}
-        </tr>
     </table>
     <script>
-        function graph(state, covid, p1, l1, p2, l2, label1, label2) {
-            var divname = "div#".concat(state);
+        function graph(province, covid, p1, l1, p2, l2, label1, label2) {
+            var divname = "div#".concat(province);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
 
             try {
 
 
-                // label the div with the name of the US state whose data we're processing
+                // label the div with the name of the province whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
                 var margin = {top: 10, right: 30, bottom: 30, left: 60},
-                    width = 560 - margin.left - margin.right,
-                    height = 400 - margin.top - margin.bottom;
+                    width = 1024 - margin.left - margin.right,
+                    height = 200 - margin.top - margin.bottom;
 
                 // insert an SVG object into the div to hold our plot
                 var svg = d3.select(divname)
@@ -102,7 +101,7 @@
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
                     .attr("x", width / 2)
-                    .text(state)
+                    .text(province)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
 
@@ -154,29 +153,29 @@
                     .attr("stroke", secondcolor)
                     .attr("stroke-width", 1.5)
                     .attr("d", d3.line()
-                        .defined(d => !isNaN(d[l1]))
+                        .defined(d => !isNaN(d[l2]))
                         .x(d => x(d.day))
                         .y(d => yd(d[l2]))
                     );
             }
             catch(err) {
-                d3.select(divname).text(state.concat("<br>", err));
+                d3.select(divname).text(province.concat("<br>", err));
             }
 
         }
         function display_selected() {
             var view = document.getElementById("select_view").value;
             if (view == "cases") {
-                states.forEach(
-                    state => graph(state, data[state],
-                        "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
+                provinces.forEach(
+                    prov => graph(prov, data[prov],
+                        "cases", "ncases7day", "deaths", "ndeaths7day",
                         "New Cases", "New Deaths"
                     )
                 );
             } else if (view == "results") {
-                states.forEach(
-                    state => graph(state, data[state],
-                        "totalTestResultsIncrease", "nresults7day", "positiveFraction", "pf7day",
+                provinces.forEach(
+                    prov => graph(prov, data[prov],
+                        "testing", "nresults7day", "positiveFraction", "pf7day",
                         "# of new test results", "positive fraction"
                     )
                 );
@@ -184,16 +183,16 @@
         }
 
         // convert "day" values to javascript date.  We need to do this only once.
-        states.forEach(
-            function (state) {
-                var ss = data[state];
+        provinces.forEach(
+            function (prov) {
+                var ss = data[prov];
                 ss = ss.map(function (row, idx, arr) {
                     row.day = Date.parse(row.day);
                     return row;
                 });
             }
         )
-        
+
         display_selected();
     </script>
 

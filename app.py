@@ -7,8 +7,11 @@ import json
 
 app = Flask(__name__)
 
-
-@app.route('/')
+# The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
+# provide a route with the /dev prefix to use in the local test environment,
+# e.g. to serve the anchor <a href="/dev/us">
+@app.route('/us')
+@app.route('/dev/us')
 def home():
     df = pd.read_csv('https://api.covidtracking.com/v1/states/daily.csv')
     df.drop(df[df["state"] == 'AS'].index, inplace=True)  # skip small territories  'GU', 'MP', 'VI']
@@ -42,13 +45,67 @@ def home():
         s['day'] = s['day'].dt.strftime('%Y-%m-%d')
 
         data[state] = s.to_dict(orient='records')
-    return render_template("home.html", states=states, data=data, last_day=last_day)
+    return render_template("us.html", states=states, data=data, last_day=last_day)
 
-@app.route('/get-data')
-def get_data():
+# The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
+# provide a route with the /dev prefix to use in the local test environment,
+# e.g. to serve the anchor <a href="/dev/us">
+@app.route('/')
+@app.route('/canada')
+@app.route('/dev/canada')
+def canada():
+    cases = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/cases_timeseries_prov.csv')
+    provinces = sorted(cases.province.unique())
+    prov_map = {
+        'Alberta': 'AB',
+        'BC': 'BC',
+        'Manitoba': 'MB',
+        'NL': 'NL',
+        'NWT': 'NWT',
+        'New Brunswick': 'NB',
+        'Nova Scotia': 'NS',
+        'Nunavut': 'NU',
+        'Ontario': 'ON',
+        'PEI': 'PEI',
+        'Quebec': 'QC',
+        'Repatriated': 'Repatriated',
+        'Saskatchewan': 'SK',
+        'Yukon': 'YT'
+    }
 
+    deaths = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/mortality_timeseries_prov.csv')
+    tests = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/testing_timeseries_prov.csv')
+    cases['day'] = pd.to_datetime(cases['date_report'].apply(str),dayfirst=True)
+    deaths['day'] = pd.to_datetime(deaths['date_death_report'].apply(str),dayfirst=True)
+    tests['day'] = pd.to_datetime(tests['date_testing'].apply(str),dayfirst=True)
 
-    return
+    # most recent day on which the data was updated
+    last_day = max(cases.day).strftime("%Y-%m-%d")
+
+    data = {}
+    for prov in provinces:
+        c = cases.loc[cases.province == prov, ['day', 'cases']]
+        d = deaths.loc[deaths.province == prov, ['day', 'deaths']]
+        t = tests.loc[deaths.province == prov, ['day', 'testing']]
+        c.sort_values(by='day', inplace=True)
+        d.sort_values(by='day', inplace=True)
+        t.sort_values(by='day', inplace=True)
+        s = pd.merge(c, d, how='left', left_on=['day'], right_on=['day'])
+        s = pd.merge(s, t, how='left', left_on=['day'], right_on=['day'])
+
+        s['ncases7day'] = s.cases.rolling(7).mean()
+        s['ndeaths7day'] = s.deaths.rolling(7).mean()
+        s['nresults7day'] = s.testing.rolling(7).mean()
+        s['positiveFraction'] = s.cases / s.testing
+        s['pf7day'] = s.positiveFraction.rolling(7).mean()
+        s['testing'].clip(-1, inplace=True)  # discard negative numbers of new test results
+        s['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
+
+        s['day'] = s['day'].dt.strftime('%Y-%m-%d')
+
+        data[prov_map[prov]] = s.to_dict(orient='records')
+        pass
+    return render_template("canada.html", provinces=sorted(prov_map.values()), data=data, last_day=last_day)
 
 
 if __name__ == '__main__':
