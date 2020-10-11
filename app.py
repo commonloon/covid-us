@@ -4,6 +4,7 @@ import urllib.request
 import urllib.parse
 import pandas as pd
 import json
+import boto3
 
 app = Flask(__name__)
 
@@ -61,7 +62,9 @@ def home():
     data['US'] = us_data.to_dict(orient='records')
     states.append('US')
 
-    return render_template("us.html", states=states, data=data, last_day=last_day)
+    rendered = render_template("us.html", states=states, data=data, last_day=last_day)
+    write_html_to_s3(rendered, "us.html", "covid-us")
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
 # The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
 # provide a route with the /dev prefix to use in the local test environment,
@@ -114,11 +117,18 @@ def canada():
         t = tests.loc[deaths.province == prov, ['day', 'testing']]
         data[prov_map[prov]] = canada_to_dict(c, d, t)
         pass
+
     # add the national data
     data[prov_map['Canada']] = canada_to_dict(national_cases.filter(['day', 'cases'], axis=1),
                                               national_deaths.filter(['day', 'deaths'], axis=1),
                                               national_tests.filter(['day', 'testing'], axis=1))
-    return render_template("canada.html", provinces=sorted(prov_map.values()), data=data, last_day=last_day)
+    # render the HTML file and save it to S3
+    rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data, last_day=last_day)
+    write_html_to_s3(rendered, "canada.html", "covid-us")
+
+    # return an HTTP redirect to the static file in S3
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
+
 
 def canada_to_dict(c, d, t):
     """
@@ -148,6 +158,16 @@ def canada_to_dict(c, d, t):
 
     return s.to_dict(orient='records')
 
+def write_html_to_s3(content, filename, bucket):
+    """ Write an html file to an S3 bucket"""
+
+    # Create S3 object
+    s3_resource = boto3.resource("s3")
+
+    # Write buffer to S3 object
+    s3_resource.Object(bucket, f'{filename}').put(
+        Body=content, ContentType="text/html"
+    )
 
 if __name__ == '__main__':
     app.run()
