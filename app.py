@@ -88,7 +88,13 @@ def world_dataset(df, countries, template, last_day):
 @app.route('/europe')
 @app.route('/dev/europe')
 def europe():
-    df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
+    """
+    This function started with me looking for a way to plot European data, but
+    evolved as the data file turned out to contain worldwide data.
+
+    :return:
+    """
+    df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv/')
     df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
     df['day'] = df['day'].dt.strftime('%Y-%m-%d')
     last_day = max(df.day)
