@@ -66,6 +66,57 @@ def home():
     write_html_to_s3(rendered, "us.html", "covid-us")
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
+def world_dataset(df, countries, template, last_day):
+    data = {}
+    for country in countries:
+        s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths']]
+        s.sort_values(by='day', inplace=True)
+
+        s['totalTestResultsIncrease'] = 0
+        s['positiveFraction'] = 0
+        s['ncases7day'] = s.cases.rolling(7).mean()
+        s['ndeaths7day'] = s.deaths.rolling(7).mean()
+        s['nresults7day'] = 0
+        s['pf7day'] = 0
+
+        data[country] = s.to_dict(orient='records')
+    # render the HTML file and save it to S3
+    rendered = render_template(template, countries=countries, data=data, last_day=last_day)
+    write_html_to_s3(rendered, template, "covid-us")
+
+
+@app.route('/europe')
+@app.route('/dev/europe')
+def europe():
+    df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv')
+    df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
+    df['day'] = df['day'].dt.strftime('%Y-%m-%d')
+    last_day = max(df.day)
+
+    countries = sorted(df.countriesAndTerritories.unique())
+    europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
+                     'United_Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
+                     'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
+                     'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
+                     'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Cyprus', 'Albania',
+                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo'])
+    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
+                   'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey'])
+    africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South_Africa',
+                     'United_Republic_of_Tanzania', 'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria'])
+    americas = sorted(['Canada', 'United_States_of_America', 'Mexico', 'Brazil', 'Chile', 'Argentina',
+                       'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
+                       'Peru', 'Uruguay', 'Paraguay'])
+
+    world_dataset(df, asia, 'asia.html', last_day)
+    world_dataset(df, africa, 'africa.html', last_day)
+    world_dataset(df, americas, 'americas.html', last_day)
+    world_dataset(df, europe, 'europe.html', last_day)
+
+    # return an HTTP redirect to the static file in S3
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
+
+
 # The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
 # provide a route with the /dev prefix to use in the local test environment,
 # e.g. to serve the anchor <a href="/dev/us">

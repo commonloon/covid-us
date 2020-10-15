@@ -4,16 +4,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Canada Covid Charts</title>
+    <title>European Covid Charts</title>
     <script>
-        const provinces = {{ provinces|tojson }};
+        const countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
     </script>
 </head>
 
 <body>
     <script src="https://d3js.org/d3.v6.min.js"></script>
-    <h1>Covid Data for Canada</h1>
+    <h1>Covid Data for European countries I'm interested in following</h1>
     <p>See also:</p>
     <ul>
     <li><a href="/africa.html">Africa</a></li>
@@ -23,8 +23,9 @@
     <li><a href="/europe.html">Europe</a></li>
     <li><a href="/us.html">US and states</a></li>
     </ul>
+
     <h2 style="font-family: sans-serif;">
-        <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
+        <a href="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data">Source data</a> last updated {{ last_day }}
     </h2>
     <p>The lines show 7 day moving averages, while points show the raw data.</p>
 
@@ -34,20 +35,20 @@
     </select>
 
     <table>
-{% for prov in provinces %}
-    <tr><td><div id="{{ prov }}">placeholder</div></td></tr>
+{% for country in countries %}
+    <tr><td><div id="{{ country }}">placeholder</div></td></tr>
 {% endfor %}
     </table>
     <script>
-        function graph(province, covid, p1, l1, p2, l2, label1, label2) {
-            var divname = "div#".concat(province);
+        function graph(country, covid, p1, l1, p2, l2, label1, label2) {
+            var divname = "div#".concat(country);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
 
             try {
 
 
-                // label the div with the name of the province whose data we're processing
+                // label the div with the name of the country whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
@@ -109,7 +110,7 @@
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
                     .attr("x", width / 2)
-                    .text(province)
+                    .text(country)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
 
@@ -167,22 +168,22 @@
                     );
             }
             catch(err) {
-                d3.select(divname).text(province.concat("<br>", err));
+                d3.select(divname).text(country.concat("<br>", err));
             }
 
         }
         function display_selected() {
             var view = document.getElementById("select_view").value;
             if (view == "cases") {
-                provinces.forEach(
-                    prov => graph(prov, data[prov],
+                countries.forEach(
+                    country => graph(country, data[country],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
                         "New Cases", "New Deaths"
                     )
                 );
             } else if (view == "results") {
-                provinces.forEach(
-                    prov => graph(prov, data[prov],
+                countries.forEach(
+                    country => graph(country, data[country],
                         "testing", "nresults7day", "positiveFraction", "pf7day",
                         "# of new test results", "positive fraction"
                     )
@@ -191,9 +192,9 @@
         }
 
         // convert "day" values to javascript date.  We need to do this only once.
-        provinces.forEach(
-            function (prov) {
-                var ss = data[prov];
+        countries.forEach(
+            function (country) {
+                var ss = data[country];
                 ss = ss.map(function (row, idx, arr) {
                     row.day = Date.parse(row.day);
                     return row;
