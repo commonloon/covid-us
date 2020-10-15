@@ -77,10 +77,20 @@ def home():
     write_html_to_s3(rendered, "us.html", "covid-us")
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
-def world_dataset(df, countries, template, last_day):
+def world_dataset(df, countries, template, last_day, max_per_capita):
+    """
+
+    :param df: dataframe containing the relevant data
+    :param countries: list of countries to plot
+    :param template: Jinja2 template used to render the HTML
+    :param last_day: day when the source data was last updated
+    :param max_per_capita: used to set a fixed scale for plots of per capita data, so countries compare easily
+    :return:
+    """
     data = {}
     for country in countries:
-        s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths']]
+        s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths',
+                                                           'Cumulative_number_for_14_days_of_COVID-19_cases_per_100000']]
         s.sort_values(by='day', inplace=True)
 
         s['totalTestResultsIncrease'] = 0
@@ -92,7 +102,7 @@ def world_dataset(df, countries, template, last_day):
 
         data[country] = s.to_dict(orient='records')
     # render the HTML file and save it to S3
-    rendered = render_template(template, countries=countries, data=data, last_day=last_day)
+    rendered = render_template(template, countries=countries, data=data, last_day=last_day, max_per_capita=max_per_capita)
     write_html_to_s3(rendered, template, "covid-us")
 
 
@@ -109,8 +119,9 @@ def europe():
     df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
     df['day'] = df['day'].dt.strftime('%Y-%m-%d')
     last_day = max(df.day)
+    max_per_capita = 700 # pick an arbitrary number that should work as of Oct 14, 2020
 
-    countries = sorted(df.countriesAndTerritories.unique())
+    # countries = sorted(df.countriesAndTerritories.unique())
     europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
                      'United_Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
                      'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
@@ -125,10 +136,10 @@ def europe():
                        'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
                        'Peru', 'Uruguay', 'Paraguay'])
 
-    world_dataset(df, asia, 'asia.html', last_day)
-    world_dataset(df, africa, 'africa.html', last_day)
-    world_dataset(df, americas, 'americas.html', last_day)
-    world_dataset(df, europe, 'europe.html', last_day)
+    world_dataset(df, asia, 'asia.html', last_day, max_per_capita)
+    world_dataset(df, africa, 'africa.html', last_day, max_per_capita)
+    world_dataset(df, americas, 'americas.html', last_day, max_per_capita)
+    world_dataset(df, europe, 'europe.html', last_day, max_per_capita)
 
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/europe.html\"></head><body><p>Updated europe.html</p></body></html>"

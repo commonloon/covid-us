@@ -8,6 +8,7 @@
     <script>
         const countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
+        var max_per_capita = {{ max_per_capita }};
     </script>
 </head>
 
@@ -31,6 +32,7 @@
 
     <select id="select_view" onchange="display_selected()">
         <option value="cases">New Cases and Deaths</option>
+        <option value="perCapita">New Cases per 100k population</option>
     </select>
 
     <table>
@@ -79,15 +81,7 @@
                 svg.append("g")
                     .call(d3.axisLeft(y))
                     .style("fill", firstcolor);
-                // add Y axis for death data
-                var yd = d3.scaleLinear()
-                    .domain(d3.extent(covid.map(d => d[p2])))
-                    .range([height, 0]);
-                svg.append("g")
-                    .call(d3.axisRight(yd))
-                    .attr("transform", "translate(" + width + ",0)")
-                    .style("fill", secondcolor);
-                // Add labels for the Y axes
+                // Add label for the first Y axis
                 svg.append("text")
                     .attr("text-anchor", "end")
                     .style("font-family", "sans-serif")
@@ -96,6 +90,16 @@
                     .attr("x", 0)
                     .text(label1)
                     .style("fill", firstcolor);
+
+                // add Y axis for death data
+                var yd = d3.scaleLinear()
+                    .domain(d3.extent(covid.map(d => d[p2])))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisRight(yd))
+                    .attr("transform", "translate(" + width + ",0)")
+                    .style("fill", secondcolor);
+                // add label for the second y axis
                 svg.append("text")
                     .attr("text-anchor", "start")
                     .attr("transform", "rotate(90)")
@@ -113,7 +117,8 @@
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
 
-                // Add scatter plot of new cases
+                // Add first scatter plot
+
                 svg.append('g')
                     .selectAll("dot")
                     .data(covid)
@@ -171,6 +176,82 @@
             }
 
         }
+        function fixed_y(country, covid, l1, y_max, label1) {
+            // This function uses a fixed scale for the y axis.  It's used to show the per-capita plots
+            // so we can more easily compare between countries.
+            var divname = "div#".concat(country);
+            var firstcolor = "#a94352";
+            var secondcolor = "#69b3a2";
+
+            try {
+                // label the div with the name of the country whose data we're processing
+                d3.select(divname).text("").attr("text-anchor", "center");
+
+                // set the dimensions and margins of the graph
+                var margin = {top: 10, right: 30, bottom: 30, left: 60},
+                    width = 1024 - margin.left - margin.right,
+                    height = 200 - margin.top - margin.bottom;
+
+                // insert an SVG object into the div to hold our plot
+                var svg = d3.select(divname)
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                // Add X axis (range of dates in the data)
+                var x = d3.scaleTime()
+                    .domain(d3.extent(covid.map(d => d.day)))
+                    .range([0, width]);
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x));
+
+                // Add Y axis
+                var y = d3.scaleLinear()
+                    .domain(d3.extent([0, y_max]))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisLeft(y))
+                    .style("fill", firstcolor);
+                // Add label for the first Y axis
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .style("font-family", "sans-serif")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 20)
+                    .attr("x", 0)
+                    .text(label1)
+                    .style("fill", firstcolor);
+
+                // Add chart title
+                svg.append("text")
+                    .attr("text-anchor", "center")
+                    .attr("y", margin.top)
+                    .attr("x", width / 2)
+                    .text(country)
+                    .style("font-family", "sans-serif")
+                    .style("fill", "black");
+
+                // add line plot
+                svg.append("path")
+                    .datum(covid)
+                    .attr("fill", "none")
+                    .attr("stroke", firstcolor)
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .defined(d => !isNaN(d[l1]))
+                        .x(d => x(d.day))
+                        .y(d => y(d[l1]))
+                    );
+            }
+            catch(err) {
+                d3.select(divname).text(country.concat("<br>", err));
+            }
+
+        }
         function display_selected() {
             var view = document.getElementById("select_view").value;
             if (view == "cases") {
@@ -178,6 +259,14 @@
                     country => graph(country, data[country],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
                         "New Cases", "New Deaths"
+                    )
+                );
+            } else if (view == "perCapita") {
+                countries.forEach(
+                    country => fixed_y(country, data[country],
+                        "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
+                        max_per_capita,
+                        "14 day avg cases per 100k pop"
                     )
                 );
             } else if (view == "results") {
