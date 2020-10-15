@@ -1,10 +1,21 @@
-from flask import Flask, request, render_template, session, redirect
-from io import StringIO
-import urllib.request
-import urllib.parse
+from flask import Flask, render_template
 import pandas as pd
-import json
 import boto3
+from datetime import datetime
+# import yappi
+# import atexit
+#
+# # End profiling and save the results into file
+# def output_profiler_stats_file():
+#     profile_file_name = 'yappi.' + datetime.now().isoformat()
+#     func_stats = yappi.get_func_stats()
+#     func_stats.save(profile_file_name, type='pstat')
+#     yappi.stop()
+#     yappi.clear_stats()
+#
+#
+# yappi.start()  # start profiler
+# atexit.register(output_profiler_stats_file)  # ensure profile gets saved
 
 app = Flask(__name__)
 

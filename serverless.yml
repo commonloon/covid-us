@@ -8,6 +8,7 @@
 #
 # For full config options, check the docs:
 #    docs.serverless.com
+#    specifically https://www.serverless.com/framework/docs/providers/aws/guide/serverless.yml/
 #
 # Happy Coding!
 
@@ -34,6 +35,8 @@ frameworkVersion: '2'
 provider:
   name: aws
   runtime: python3.8
+  timeout: 15
+#  memorySize: 512
 
 # you can overwrite defaults here
 #  stage: dev
@@ -81,7 +84,6 @@ functions:
         events:
             - http: ANY /
             - http: 'ANY {proxy+}'
-            - schedule: rate(4 hours)
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
