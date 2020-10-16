@@ -35,7 +35,7 @@ frameworkVersion: '2'
 provider:
   name: aws
   runtime: python3.8
-  timeout: 15
+  timeout: 20
 #  memorySize: 512
 
 # you can overwrite defaults here

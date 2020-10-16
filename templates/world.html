@@ -11,8 +11,36 @@
         var max_per_capita = {{ max_per_capita }};
     </script>
     <style>
-        .plot_table tr:nth-child(even) {background-color: floralwhite;}
-        .plot_table tr:nth-child(odd) {background-color: antiquewhite;}
+.plot_table tr:nth-child(even) {background-color: floralwhite;}
+.plot_table tr:nth-child(odd) {background-color: antiquewhite;}
+p,h1,h2 {
+ font-size: 100%;
+ font-family: sans-serif;
+}
+#buttons li {
+  float: left;
+  list-style: none;
+  text-align: center;
+  background-color: yellowgreen;
+  border-radius: 20px;
+  margin-right: 30px;
+  width: 150px;
+  line-height: 60px;
+}
+#buttons li a {
+  text-decoration: none;
+  color: black;
+  display: block;
+  font-family: sans-serif;
+}
+
+#buttons li a:hover {
+  text-decoration: none;
+  color: #000000;
+  background-color: greenyellow;
+  border-radius: 20px;
+  font-family: sans-serif;
+}
     </style>
 </head>
 
@@ -20,15 +48,20 @@
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <h1>{{ headline }}</h1>
     <p>See also:</p>
-    <ul>
+    <span>
+    <ul id="buttons">
     <li><a href="/africa.html">Africa</a></li>
     <li><a href="/asia.html">Asia</a></li>
     <li><a href="/americas.html">Americas</a></li>
-    <li><a href="/canada.html">Canada and provinces</a></li>
+    <li><a href="/canada.html">Canada (prov)</a></li>
     <li><a href="/europe.html">Europe</a></li>
     <li><a href="/us.html">US and states</a></li>
     </ul>
-
+    </span>
+    <br>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
     <h2 style="font-family: sans-serif;">
         <a href=" {{ source_data_url }}">Source data</a> last updated {{ last_day }}
     </h2>
@@ -270,7 +303,7 @@
                     country => fixed_y(country, data[country],
                         "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
                         max_per_capita,
-                        "14 day avg cases per 100k pop"
+                        "cases per 100k pop"
                     )
                 );
             } else if (view == "results") {

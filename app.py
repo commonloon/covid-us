@@ -139,12 +139,13 @@ def europe():
                      'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Cyprus', 'Albania',
                      'Slovenia', 'Slovakia', 'Moldova', 'Kosovo'])
     asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
-                   'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey'])
+                   'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
+                   'Israel', 'Jordan', 'Saudi_Arabia', 'Yemen'])
     africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South_Africa',
                      'United_Republic_of_Tanzania', 'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria'])
     americas = sorted(['Canada', 'United_States_of_America', 'Mexico', 'Brazil', 'Chile', 'Argentina',
                        'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
-                       'Peru', 'Uruguay', 'Paraguay'])
+                       'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
 
     world_dataset(df, asia, 'asia.html', last_day, max_per_capita,
                   title='Asian Covid Charts',
