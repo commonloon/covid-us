@@ -9,31 +9,68 @@
         const provinces = {{ provinces|tojson }};
         var data = {{ data|tojson }};
     </script>
+    <style>
+.plot_table tr:nth-child(even) {background-color: floralwhite;}
+.plot_table tr:nth-child(odd) {background-color: antiquewhite;}
+p,h1,h2 {
+ font-size: 100%;
+ font-family: sans-serif;
+}
+#buttons li {
+  float: left;
+  list-style: none;
+  text-align: center;
+  background-color: yellowgreen;
+  border-radius: 20px;
+  margin-right: 30px;
+  width: 150px;
+  line-height: 60px;
+}
+#buttons li a {
+  text-decoration: none;
+  color: black;
+  display: block;
+  font-family: sans-serif;
+}
+
+#buttons li a:hover {
+  text-decoration: none;
+  color: #000000;
+  background-color: greenyellow;
+  border-radius: 20px;
+  font-family: sans-serif;
+}
+    </style>
 </head>
 
 <body>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <h1>Covid Data for Canada</h1>
     <p>See also:</p>
-    <ul>
+    <span>
+    <ul id="buttons">
     <li><a href="/africa.html">Africa</a></li>
     <li><a href="/asia.html">Asia</a></li>
     <li><a href="/americas.html">Americas</a></li>
-    <li><a href="/canada.html">Canada and provinces</a></li>
+    <li><a href="/canada.html">Canada</a></li>
     <li><a href="/europe.html">Europe</a></li>
     <li><a href="/us.html">US and states</a></li>
     </ul>
+    </span>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
     <h2 style="font-family: sans-serif;">
         <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
     </h2>
-    <p>The lines show 7 day moving averages, while points show the raw data.</p>
+    <p>Lines show 7 day moving averages, while points show the raw data.</p>
 
     <select id="select_view" onchange="display_selected()">
         <option value="cases">New Cases and Deaths</option>
         <option value="results"># of Test Results and Positive Fraction</option>
     </select>
 
-    <table>
+    <table class="plot_table">
 {% for prov in provinces %}
     <tr><td><div id="{{ prov }}">placeholder</div></td></tr>
 {% endfor %}
