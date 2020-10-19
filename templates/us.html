@@ -5,6 +5,8 @@
     <title>US Covid Charts</title>
     <script>
         const states = {{ states|tojson }};
+        var maxPerCapCases = {{ maxPerCapCases|tojson }};
+        var maxPerCapDeaths = {{ maxPerCapDeaths|tojson }};
         var data = {{ data|tojson }};
     </script>
         <style>
@@ -65,6 +67,7 @@ p,h1,h2 {
 
     <select id="select_view" onchange="display_selected()">
         <option value="cases">New Cases and Deaths</option>
+        <option value="percap">New Cases and Deaths per 100k population</option>
         <option value="results"># of Test Results and Positive Fraction</option>
     </select>
 
@@ -79,7 +82,7 @@ p,h1,h2 {
         </tr>
     </table>
     <script>
-        function graph(state, covid, p1, l1, p2, l2, label1, label2) {
+        function graph(state, covid, p1, l1, p2, l2, label1, label2, max1=null, max2=null) {
             var divname = "div#".concat(state);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
@@ -113,16 +116,30 @@ p,h1,h2 {
                     .call(d3.axisBottom(x));
 
                 // Add Y axis for new case data
-                var y = d3.scaleLinear()
-                    .domain(d3.extent(covid.map(d => d[p1])))
-                    .range([height, 0]);
+                var y;
+                if (max1 == null) {
+                    y = d3.scaleLinear()
+                        .domain(d3.extent(covid.map(d => d[p1])))
+                        .range([height, 0]);
+                } else {
+                    y = d3.scaleLinear()
+                        .domain(d3.extent([0,max1]))
+                        .range([height, 0]);
+                }
                 svg.append("g")
                     .call(d3.axisLeft(y))
                     .style("fill", firstcolor);
                 // add Y axis for death data
-                var yd = d3.scaleLinear()
-                    .domain(d3.extent(covid.map(d => d[p2])))
-                    .range([height, 0]);
+                var yd;
+                if (max2 == null) {
+                    yd = d3.scaleLinear()
+                        .domain(d3.extent(covid.map(d => d[p2])))
+                        .range([height, 0]);
+                } else {
+                    yd = d3.scaleLinear()
+                        .domain(d3.extent([0,max2]))
+                        .range([height, 0]);
+                }
                 svg.append("g")
                     .call(d3.axisRight(yd))
                     .attr("transform", "translate(" + width + ",0)")
@@ -218,6 +235,13 @@ p,h1,h2 {
                     state => graph(state, data[state],
                         "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
                         "New Cases", "New Deaths"
+                    )
+                );
+            } else if (view == "percap") {
+                states.forEach(
+                    state => graph(state, data[state],
+                        "perCapCases", "perCapCases7day", "perCapDeaths", "perCapDeaths7day",
+                        "New Cases/100k pop", "New Deaths/100k pop", maxPerCapCases, maxPerCapDeaths
                     )
                 );
             } else if (view == "results") {

@@ -262,6 +262,14 @@ p,h1,h2 {
                     .attr("x", 0)
                     .text(label1)
                     .style("fill", firstcolor);
+                // repeat the y axis on the right hand side to make it easier to read
+                var yd = d3.scaleLinear()
+                    .domain(d3.extent([0, y_max]))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisRight(yd))
+                    .attr("transform", "translate(" + width + ",0)")
+                    .style("fill", firstcolor);
 
                 // Add chart title
                 svg.append("text")

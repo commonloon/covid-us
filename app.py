@@ -1,5 +1,6 @@
 from flask import Flask, render_template
 import pandas as pd
+from numpy import nanmax
 import boto3
 from datetime import datetime
 # import yappi
@@ -24,7 +25,7 @@ app = Flask(__name__)
 # e.g. to serve the anchor <a href="/dev/us">
 @app.route('/us')
 @app.route('/dev/us')
-def home():
+def us():
     national_df = pd.read_csv('https://api.covidtracking.com/v1/us/daily.csv')
     national_df['day'] = pd.to_datetime(national_df['date'].apply(str))
     national_df['positiveFraction'] = national_df.positiveIncrease / national_df.totalTestResultsIncrease
@@ -42,6 +43,8 @@ def home():
     states_df['totalTestResultsIncrease'].clip(-1, inplace=True)  # discard negative values of totalTestResultsIncrease
     states_df['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
 
+    states_pop = {row[0]: row[1] for _, row in pd.read_csv("static/US_2020_pop_estimates.csv").iterrows()}
+
     # There are many erroneous reports of zero or fewer new cases, so for now we drop them.
     # I'm uncomfortable with this long term, as states with low absolute numbers could legitimately
     # report zero new cases per day.  But as of June 15, very few states could legitimately have 0 new cases per day.
@@ -51,6 +54,8 @@ def home():
 
     # gather the relevant data for the states
     data = {}
+    maxPerCapCases = 0
+    maxPerCapDeaths = 0
     for state in states:
         s = states_df.loc[states_df.state == state, ['day', 'positiveIncrease', 'deathIncrease', 'totalTestResultsIncrease', 'positiveFraction']]
         s.sort_values(by='day', inplace=True)
@@ -59,6 +64,17 @@ def home():
         s['ndeaths7day'] = s.deathIncrease.rolling(7).mean()
         s['nresults7day'] = s.totalTestResultsIncrease.rolling(7).mean()
         s['pf7day'] = s.positiveFraction.rolling(7).mean()
+        s['perCapCases'] = s.positiveIncrease * 100000 / states_pop[state]
+        s['perCapCases7day'] = s.perCapCases.rolling(7).mean()
+        s['perCapDeaths'] = s.deathIncrease * 100000 / states_pop[state]
+        s['perCapDeaths7day'] = s.perCapDeaths.rolling(7).mean()
+
+        # we need max values so we can do all the per capita plots to the same scale
+        # We use the rolling averages to set the axes because outliers on the individual points make
+        # the scale too big.
+        maxPerCapCases = max(maxPerCapCases, nanmax(s.perCapCases7day))
+        maxPerCapDeaths = max(maxPerCapDeaths, nanmax(s.perCapDeaths7day))
+
         s['day'] = s['day'].dt.strftime('%Y-%m-%d')
 
         data[state] = s.to_dict(orient='records')
@@ -69,11 +85,17 @@ def home():
     us_data['ndeaths7day'] = us_data.deathIncrease.rolling(7).mean()
     us_data['nresults7day'] = us_data.totalTestResultsIncrease.rolling(7).mean()
     us_data['pf7day'] = us_data.positiveFraction.rolling(7).mean()
+    us_data['perCapCases'] = us_data.positiveIncrease * 100000 / states_pop['US']
+    us_data['perCapCases7day'] = us_data.perCapCases.rolling(7).mean()
+    us_data['perCapDeaths'] = us_data.deathIncrease * 100000 / states_pop['US']
+    us_data['perCapDeaths7day'] = us_data.perCapDeaths.rolling(7).mean()
     us_data['day'] = us_data['day'].dt.strftime('%Y-%m-%d')
     data['US'] = us_data.to_dict(orient='records')
     states.append('US')
 
-    rendered = render_template("us.html", states=states, data=data, last_day=last_day)
+    rendered = render_template("us.html", states=states, data=data, last_day=last_day,
+                               maxPerCapCases=maxPerCapCases,
+                               maxPerCapDeaths=maxPerCapDeaths)
     write_html_to_s3(rendered, "us.html", "covid-us")
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
