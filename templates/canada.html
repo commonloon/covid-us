@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Canada Covid Charts</title>
     <script>
         const provinces = {{ provinces|tojson }};
         var data = {{ data|tojson }};
+        var sort_helper = [];  // start off sorted by provinces
+        provinces.forEach(
+            prov => sort_helper.push([prov, latest_case_count(data[prov])])
+        );
+        function latest_case_count(d) {
+            // return the most recent moving average of new cases
+            return d[d.length-1]["ncases7day"];
+        }
     </script>
     <link rel="stylesheet" href="static/covid.css">
 
@@ -35,15 +41,29 @@
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
 
-    <select id="select_view" onchange="display_selected()">
-        <option value="cases">New Cases and Deaths</option>
-        <option value="results"># of Test Results and Positive Fraction</option>
-    </select>
+    <table>
+        <tr>
+            <td>Chart type</td>
+            <td>
+                <select id="select_view" onchange="display_selected()">
+                    <option value="cases">New Cases and Deaths</option>
+                    <option value="results"># of Test Results and Positive Fraction</option>
+                </select>
+            </td>
+        </tr>
+        <tr><td>Sort by:</td><td>
+            <select id="select_sort" onchange="display_selected()">
+                <option value="0">Province</option>
+                <option value="1">Most recent new case count</option>
+            </select>
+        </td></tr>
+    </table>
 
-    <table class="plot_table">
-{% for prov in provinces %}
-    <tr><td><div id="{{ prov }}">placeholder</div></td></tr>
-{% endfor %}
+    <table class="plot_table"><tbody id="plots">
+    {% for prov in provinces %}
+        <tr><td id="{{ prov }}"><div>placeholder</div></td></tr>
+    {% endfor %}
+    </tbody>
     </table>
     <script>
         function graph(province, covid, p1, l1, p2, l2, label1, label2) {
@@ -52,7 +72,8 @@
             var secondcolor = "#69b3a2";
 
             try {
-
+                // append a new row
+                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", province);
 
                 // label the div with the name of the province whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
@@ -180,16 +201,30 @@
         }
         function display_selected() {
             var view = document.getElementById("select_view").value;
+            var sort_by = document.getElementById("select_sort").value;
+
+            // sort the regions into the desired order
+            if (sort_by == "0") {
+                // sort by geographic location
+                sort_helper.sort(compareFirstColumn);
+            } else if (sort_by == "1") {
+                // sort by some data value
+                sort_helper.sort(compareSecondColumn);
+            }
+            // remove the old rows
+            d3.select("tbody#plots").selectAll("tr").remove();
+
+            // relabel the table items
             if (view == "cases") {
-                provinces.forEach(
-                    prov => graph(prov, data[prov],
+                sort_helper.forEach(
+                    item => graph(item[0], data[item[0]],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
                         "New Cases", "New Deaths"
                     )
                 );
             } else if (view == "results") {
-                provinces.forEach(
-                    prov => graph(prov, data[prov],
+                sort_helper.forEach(
+                    item => graph(item[0], data[item[0]],
                         "testing", "nresults7day", "positiveFraction", "pf7day",
                         "# of new test results", "positive fraction"
                     )
@@ -206,9 +241,36 @@
                     return row;
                 });
             }
-        )
+        );
 
         display_selected();
+
+        function compareFirstColumn(a, b) {
+            if (a[0] === b[0]) {
+                return 0;
+            }
+            else {
+                return (a[0] < b[0]) ? -1 : 1;
+            }
+        }
+        function compareSecondColumn(a, b) {
+            if (a[1] === b[1]) {
+                return 0;
+            }
+            else {
+                return (a[1] < b[1]) ? -1 : 1;
+            }
+        }
+        function reset_plot_table(item_names) {
+            //  remove all the existing rows
+            rows = d3.select("q").selectAll("tr").remove();
+            // create a skeleton table with all the geographical units
+
+            item_names.forEach(
+                item => d3.enter()
+            );
+        }
+
     </script>
 
 </body>
