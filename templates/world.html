@@ -9,6 +9,18 @@
         const countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
         var max_per_capita = {{ max_per_capita }};
+        var sort_helper = [];  // start off sorted by countries
+        countries.forEach(
+            region => sort_helper.push([region, latest_case_count(data[region]), latest_per_capita(data[region])])
+        );
+        function latest_case_count(d) {
+            // return the most recent moving average of new cases
+            return d[d.length-1]["ncases7day"];
+        }
+        function latest_per_capita(d) {
+            // return the most recent per-capita new case count
+            return d[d.length-1]["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]
+        }
     </script>
     <link rel="stylesheet" href="static/covid.css">
 </head>
@@ -36,15 +48,29 @@
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
 
-    <select id="select_view" onchange="display_selected()">
-        <option value="cases">New Cases and Deaths</option>
-        <option value="perCapita">New Cases per 100k population</option>
-    </select>
-
-    <table class="plot_table">
+    <table>
+        <tr>
+            <td>Chart type</td>
+            <td>
+                <select id="select_view" onchange="display_selected()">
+                    <option value="cases">New Cases and Deaths</option>
+                    <option value="perCapita">New Cases per 100k population</option>
+                </select>
+            </td>
+        </tr>
+        <tr><td>Sort by:</td><td>
+            <select id="select_sort" onchange="display_selected()">
+                <option value="0">Alphabetical</option>
+                <option value="1">Latest new case count</option>
+                <option value="2">Latest per capita new case count</option>
+            </select>
+        </td></tr>
+    </table>
+    <table class="plot_table"><tbody id="plots">
 {% for country in countries %}
     <tr><td><div id="{{ country }}">placeholder</div></td></tr>
 {% endfor %}
+    </tbody>
     </table>
     <script>
         function graph(country, covid, p1, l1, p2, l2, label1, label2) {
@@ -53,7 +79,8 @@
             var secondcolor = "#69b3a2";
 
             try {
-
+                // append a new row to hold this plot
+                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", country);
 
                 // label the div with the name of the country whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
@@ -190,6 +217,9 @@
             var secondcolor = "#69b3a2";
 
             try {
+                // append a new row to hold this plot
+                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", country);
+
                 // label the div with the name of the country whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
 
@@ -268,24 +298,41 @@
         }
         function display_selected() {
             var view = document.getElementById("select_view").value;
+            var sort_by = document.getElementById("select_sort").value;
+
+            // sort the regions into the desired order
+            if (sort_by == "0") {
+                // sort by geographic location
+                sort_helper.sort(compareFirstColumn);
+            } else if (sort_by == "1") {
+                // sort by some data value
+                sort_helper.sort(compareSecondColumn);
+            } else if (sort_by == "2") {
+                // sort by some data value
+                sort_helper.sort(compareThirdColumn);
+            }
+            // remove the old rows
+            d3.select("tbody#plots").selectAll("tr").remove();
+
+            // display the items in the appropriately sorted order
             if (view == "cases") {
-                countries.forEach(
-                    country => graph(country, data[country],
+                sort_helper.forEach(
+                    item => graph(item[0], data[item[0]],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
                         "New Cases", "New Deaths"
                     )
                 );
             } else if (view == "perCapita") {
-                countries.forEach(
-                    country => fixed_y(country, data[country],
+                sort_helper.forEach(
+                    item => fixed_y(item[0], data[item[0]],
                         "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
                         max_per_capita,
                         "cases per 100k pop"
                     )
                 );
             } else if (view == "results") {
-                countries.forEach(
-                    country => graph(country, data[country],
+                sort_helper.forEach(
+                    item => graph(item[0], data[item[0]],
                         "testing", "nresults7day", "positiveFraction", "pf7day",
                         "# of new test results", "positive fraction"
                     )
@@ -305,6 +352,40 @@
         )
 
         display_selected();
+
+        function compareFirstColumn(a, b) {
+            if (a[0] === b[0]) {
+                return 0;
+            }
+            else {
+                return (a[0] < b[0]) ? -1 : 1;
+            }
+        }
+        function compareSecondColumn(a, b) {
+            if (a[1] === b[1]) {
+                return 0;
+            }
+            else {
+                return (a[1] < b[1]) ? -1 : 1;
+            }
+        }
+        function compareThirdColumn(a, b) {
+            if (a[2] === b[2]) {
+                return 0;
+            }
+            else {
+                return (a[2] < b[2]) ? -1 : 1;
+            }
+        }
+        function reset_plot_table(item_names) {
+            //  remove all the existing rows
+            rows = d3.select("q").selectAll("tr").remove();
+            // create a skeleton table with all the geographical units
+
+            item_names.forEach(
+                item => d3.enter()
+            );
+        }
     </script>
 
 </body>

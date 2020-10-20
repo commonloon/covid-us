@@ -53,8 +53,8 @@
         </tr>
         <tr><td>Sort by:</td><td>
             <select id="select_sort" onchange="display_selected()">
-                <option value="0">Province</option>
-                <option value="1">Most recent new case count</option>
+                <option value="0">Alphabetical</option>
+                <option value="1">Latest new case count</option>
             </select>
         </td></tr>
     </table>
@@ -214,7 +214,7 @@
             // remove the old rows
             d3.select("tbody#plots").selectAll("tr").remove();
 
-            // relabel the table items
+            // display the items in the appropriately sorted order
             if (view == "cases") {
                 sort_helper.forEach(
                     item => graph(item[0], data[item[0]],
