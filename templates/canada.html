@@ -12,7 +12,7 @@
         );
         function latest_case_count(d) {
             // return the most recent moving average of new cases
-            return d[d.length-1]["ncases7day"];
+            return Math.round(d[d.length-1]["ncases7day"]);
         }
     </script>
     <link rel="stylesheet" href="static/covid.css">
@@ -40,6 +40,7 @@
         <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
+    <p>Case counts given in graph titles are 7 day moving averages of new cases.</p>
 
     <table>
         <tr>
@@ -66,7 +67,7 @@
     </tbody>
     </table>
     <script>
-        function graph(province, covid, p1, l1, p2, l2, label1, label2) {
+        function graph(province, covid, p1, l1, p2, l2, label1, label2, latest_cases) {
             var divname = "div#".concat(province);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
@@ -133,11 +134,12 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
+                var title = province + ": " + latest_cases + " Cases";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
-                    .attr("x", width / 2)
-                    .text(province)
+                    .attr("x", 3 * width / 8)
+                    .text(title)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
 
@@ -219,14 +221,14 @@
                 sort_helper.forEach(
                     item => graph(item[0], data[item[0]],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
-                        "New Cases", "New Deaths"
+                        "New Cases", "New Deaths", item[1]
                     )
                 );
             } else if (view == "results") {
                 sort_helper.forEach(
-                    item => graph(item[0], data[item[0]],
+                    item => graph(item[1], data[item[1]],
                         "testing", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction"
+                        "# of new test results", "positive fraction", item[1]
                     )
                 );
             }
