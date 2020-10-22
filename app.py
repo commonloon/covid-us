@@ -117,6 +117,7 @@ def world_dataset(df, countries, output_filename, last_day, max_per_capita,
         s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths',
                                                            'Cumulative_number_for_14_days_of_COVID-19_cases_per_100000']]
         s.sort_values(by='day', inplace=True)
+        s['Cumulative_number_for_14_days_of_COVID-19_cases_per_100000'] /= 14  # we want /100k pop, not the 14 day accumulation
 
         s['totalTestResultsIncrease'] = 0
         s['positiveFraction'] = 0

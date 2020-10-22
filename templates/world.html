@@ -47,9 +47,9 @@
         <a href=" {{ source_data_url }}">Source data</a> last updated {{ last_day }}
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
-    <p>"Current" case counts given in graph titles are 7 day moving averages of new cases.</p>
-    <p>"/100k pop" values come from the Cumulative_number_for_14_days_of_COVID-19_cases_per_100000 field in the source data.</p>
-
+    <p>"New" case counts given in graph titles are 7 day moving averages of new cases.</p>
+    <p>"/100k pop" values come from the Cumulative_number_for_14_days_of_COVID-19_cases_per_100000
+        field in the source data.  I divided that value by 14 to get the per-day average.</p>
     <table>
         <tr>
             <td>Chart type</td>
@@ -144,7 +144,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = country + ": " + latest_cases + " Current Cases (" + latest_percap + "/100k pop)";
+                var title = country + ": " + latest_cases + " New Cases (" + latest_percap + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -274,7 +274,7 @@
                     .style("fill", firstcolor);
 
                 // Add chart title
-                var title = country + ": " + latest_cases + " Current Cases (" + latest_percap + "/100k pop)";
+                var title = country + ": " + latest_cases + " New Cases (" + latest_percap + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
