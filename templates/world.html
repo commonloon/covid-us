@@ -19,7 +19,7 @@
         }
         function latest_per_capita(d) {
             // return the most recent per-capita new case count
-            return Math.round(d[d.length-1]["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"])
+            return d[d.length-1]["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]
         }
     </script>
     <link rel="stylesheet" href="static/covid.css">
@@ -144,7 +144,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = country + ": " + latest_cases + " New Cases (" + latest_percap + "/100k pop)";
+                var title = country + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -274,7 +274,7 @@
                     .style("fill", firstcolor);
 
                 // Add chart title
-                var title = country + ": " + latest_cases + " New Cases (" + latest_percap + "/100k pop)";
+                var title = country + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
