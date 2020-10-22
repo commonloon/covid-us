@@ -152,7 +152,7 @@ def europe():
     df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
     df['day'] = df['day'].dt.strftime('%Y-%m-%d')
     last_day = max(df.day)
-    max_per_capita = 700 # pick an arbitrary number that should work as of Oct 14, 2020
+    max_per_capita = 50 # pick an arbitrary number that should work as of Oct 14, 2020
 
     # countries = sorted(df.countriesAndTerritories.unique())
     europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
@@ -160,7 +160,7 @@ def europe():
                      'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
                      'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
                      'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Cyprus', 'Albania',
-                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo'])
+                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
     asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
                    'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
                    'Israel', 'Jordan', 'Saudi_Arabia', 'Yemen'])
