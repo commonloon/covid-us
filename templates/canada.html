@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>Canada Covid Charts</title>
     <script>
+        const chart_height = 250;
+        const chart_width  = 1024;
         const provinces = {{ provinces|tojson }};
         var data = {{ data|tojson }};
         var sort_helper = [];  // start off sorted by provinces
@@ -67,6 +69,37 @@
     </tbody>
     </table>
     <script>
+        class Tooltip {
+          constructor(svg, x, y) {
+            this.node = svg.append("g")
+                .attr("pointer-events", "none").attr("display", "none")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", "10").attr("text-anchor", "middle");
+            this.node.append("rect")
+                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+            this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
+            this.scale_x = x;
+            this.scale_y = y;
+          }
+          show(d) {
+              var node = this.node.node();
+              node.removeAttribute("display");
+              this._circle.removeAttribute("display");
+              node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
+              this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
+              this._cases.textContent = d3.format("d")(d.cases) + " new cases";
+              this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
+          }
+          hide() {
+            this.node.node().setAttribute("display", "none");
+            this._circle.setAttribute("display", "none");
+          }
+        }
+
         function graph(province, covid, p1, l1, p2, l2, label1, label2, latest_cases) {
             var divname = "div#".concat(province);
             var firstcolor = "#a94352";
@@ -74,15 +107,15 @@
 
             try {
                 // append a new row
-                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", province);
+                var div = d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", province);
 
                 // label the div with the name of the province whose data we're processing
                 d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
                 var margin = {top: 10, right: 30, bottom: 30, left: 60},
-                    width = 1024 - margin.left - margin.right,
-                    height = 200 - margin.top - margin.bottom;
+                    width = chart_width - margin.left - margin.right,
+                    height = chart_height - margin.top - margin.bottom;
 
                 // insert an SVG object into the div to hold our plot
                 var svg = d3.select(divname)
@@ -92,6 +125,10 @@
                     .append("g")
                     .attr("transform",
                         "translate(" + margin.left + "," + margin.top + ")");
+
+                // add tool tips
+                div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
+                    .on("mouseleave", event => tooltip.hide());
 
                 // Add X axis (range of dates in the data)
                 var x = d3.scaleTime()
@@ -142,6 +179,15 @@
                     .text(title)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
+
+                function bisect(data, date) {
+                    i = d3.bisector(d => d.day).left(data, Date.parse(date));
+                    i = data.length > i ? i : data.length - 1;
+                    const a = data[i - 1], b = data[i];
+                    return date - a.day > b.day - date ? b : a;
+                }
+
+                const tooltip = new Tooltip(svg, x, y);
 
                 // Add scatter plot of new cases
                 svg.append('g')

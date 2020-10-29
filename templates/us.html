@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>US Covid Charts</title>
     <script>
+        const chart_width = 560;
+        const chart_height = 400;
         const states = {{ states|tojson }};
         var maxPerCapCases = {{ maxPerCapCases|tojson }};
         var maxPerCapDeaths = {{ maxPerCapDeaths|tojson }};
@@ -51,6 +53,37 @@
         </tr>
     </table>
     <script>
+                class Tooltip {
+          constructor(svg, x, y) {
+            this.node = svg.append("g")
+                .attr("pointer-events", "none").attr("display", "none")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", "10").attr("text-anchor", "middle");
+            this.node.append("rect")
+                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+            this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
+            this.scale_x = x;
+            this.scale_y = y;
+          }
+          show(d) {
+              var node = this.node.node();
+              node.removeAttribute("display");
+              this._circle.removeAttribute("display");
+              node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.positiveIncrease) + ")")
+              this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
+              this._cases.textContent = d3.format("d")(d.positiveIncrease) + " new cases";
+              this._deaths.textContent = d3.format("d")(d.deathIncrease) + " new deaths";
+          }
+          hide() {
+            this.node.node().setAttribute("display", "none");
+            this._circle.setAttribute("display", "none");
+          }
+        }
+
         function graph(state, covid, p1, l1, p2, l2, label1, label2, max1=null, max2=null) {
             var divname = "div#".concat(state);
             var firstcolor = "#a94352";
@@ -60,12 +93,12 @@
 
 
                 // label the div with the name of the US state whose data we're processing
-                d3.select(divname).text("").attr("text-anchor", "center");
+                var div = d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
                 var margin = {top: 10, right: 30, bottom: 30, left: 60},
-                    width = 560 - margin.left - margin.right,
-                    height = 400 - margin.top - margin.bottom;
+                    width = chart_width - margin.left - margin.right,
+                    height = chart_height - margin.top - margin.bottom;
 
                 // insert an SVG object into the div to hold our plot
                 var svg = d3.select(divname)
@@ -138,6 +171,17 @@
                     .text(state)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
+
+                // add tool tips to display values on a particular date
+                function bisect(data, date) {
+                    i = d3.bisector(d => d.day).left(data, Date.parse(date));
+                    i = data.length > i ? i : data.length - 1;
+                    const a = data[i - 1], b = data[i];
+                    return date - a.day > b.day - date ? b : a;
+                }
+                const tooltip = new Tooltip(svg, x, y);
+                div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
+                    .on("mouseleave", event => tooltip.hide());
 
                 // Add scatter plot of new cases
                 svg.append('g')
