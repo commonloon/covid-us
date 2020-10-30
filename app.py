@@ -99,10 +99,10 @@ def us():
     write_html_to_s3(rendered, "us.html", "covid-us")
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
-def world_dataset(df, countries, output_filename, last_day, max_per_capita,
-                  title,
-                  headline,
-                  source_data_url, ):
+def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
+                      title,
+                      headline,
+                      source_data_url, ):
     """
 
     :param df: dataframe containing the relevant data
@@ -138,6 +138,26 @@ def world_dataset(df, countries, output_filename, last_day, max_per_capita,
                                source_data_url=source_data_url)
     write_html_to_s3(rendered, output_filename, "covid-us")
 
+def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
+    world_df = df.groupby(['day'])[['day', 'cases', 'deaths']].sum()
+    world_df.reset_index(level=['day'],inplace=True)
+    world_df.sort_values(by='day', inplace=True)
+    world_df['ncases7day'] = world_df.cases.rolling(7).mean()
+    world_df['ndeaths7day'] = world_df.deaths.rolling(7).mean()
+    world_df.dropna(inplace=True)
+
+    data = {}
+    data['Worldwide'] = world_df.to_dict(orient='records')
+
+    # render the HTML file and save it to S3
+    rendered = render_template("global.html",
+                               countries=["Worldwide"],
+                               data=data,
+                               last_day=last_day,
+                               title=title,
+                               headline=headline,
+                               source_data_url=source_data_url)
+    write_html_to_s3(rendered, "worldwide.html", "covid-us")
 
 @app.route('/europe')
 @app.route('/dev/europe')
@@ -155,6 +175,11 @@ def europe():
     max_per_capita = 50 # pick an arbitrary number that should work as of Oct 14, 2020
 
     # countries = sorted(df.countriesAndTerritories.unique())
+    plot_ecdc_totals(df, last_day,
+                     title='Worldwide Covid Cases',
+                     headline="Sum of all the individual country data.",
+                     source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+
     europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
                      'United_Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
                      'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
@@ -170,22 +195,22 @@ def europe():
                        'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
                        'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
 
-    world_dataset(df, asia, 'asia.html', last_day, max_per_capita,
-                  title='Asian Covid Charts',
-                  headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
-                  source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    world_dataset(df, africa, 'africa.html', last_day, max_per_capita,
-                  title='African Covid Charts',
-                  headline="Covid Data for an arbitrary subset of African countries",
-                  source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    world_dataset(df, americas, 'americas.html', last_day, max_per_capita,
-                  title='Americas Covid Charts',
-                  headline="Covid Data for an arbitrary subset of countries in the Americas",
-                  source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    world_dataset(df, europe, 'europe.html', last_day, max_per_capita,
-                  title='European Covid Charts',
-                  headline="Covid Data for an arbitrary subset of European countries",
-                  source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_ecdc_dataset(df, asia, 'asia.html', last_day, max_per_capita,
+                      title='Asian Covid Charts',
+                      headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
+                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_ecdc_dataset(df, africa, 'africa.html', last_day, max_per_capita,
+                      title='African Covid Charts',
+                      headline="Covid Data for an arbitrary subset of African countries",
+                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_ecdc_dataset(df, americas, 'americas.html', last_day, max_per_capita,
+                      title='Americas Covid Charts',
+                      headline="Covid Data for an arbitrary subset of countries in the Americas",
+                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_ecdc_dataset(df, europe, 'europe.html', last_day, max_per_capita,
+                      title='European Covid Charts',
+                      headline="Covid Data for an arbitrary subset of European countries",
+                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
 
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/europe.html\"></head><body><p>Updated europe.html</p></body></html>"

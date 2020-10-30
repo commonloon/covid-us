@@ -6,23 +6,10 @@
     <meta charset="UTF-8">
     <title>{{ title }}</title>
     <script>
-        const chart_height = 250;
+        const chart_height = 512;
         const chart_width = 1024;
-        const countries = {{ countries|tojson }};
+        var countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
-        var max_per_capita = {{ max_per_capita }};
-        var sort_helper = [];  // start off sorted by countries
-        countries.forEach(
-            region => sort_helper.push([region, latest_case_count(data[region]), latest_per_capita(data[region])])
-        );
-        function latest_case_count(d) {
-            // return the most recent moving average of new cases
-            return Math.round(d[d.length-1]["ncases7day"]);
-        }
-        function latest_per_capita(d) {
-            // return the most recent per-capita new case count
-            return d[d.length-1]["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]
-        }
     </script>
     <link rel="stylesheet" href="static/covid.css">
 </head>
@@ -51,30 +38,20 @@
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
     <p>"New" case counts given in graph titles are 7 day moving averages of new cases.</p>
-    <p>"/100k pop" values come from the Cumulative_number_for_14_days_of_COVID-19_cases_per_100000
-        field in the source data.  I divided that value by 14 to get the per-day average.</p>
+
     <table>
         <tr>
             <td>Chart type</td>
             <td>
                 <select id="select_view" onchange="display_selected()">
                     <option value="cases">New Cases and Deaths</option>
-                    <option value="perCapita">New Cases per 100k population</option>
                 </select>
             </td>
         </tr>
-        <tr><td>Sort by:</td><td>
-            <select id="select_sort" onchange="display_selected()">
-                <option value="0">Alphabetical</option>
-                <option value="1">Latest new case count</option>
-                <option value="2">Latest per capita new case count</option>
-            </select>
-        </td></tr>
+
     </table>
     <table class="plot_table"><tbody id="plots">
-{% for country in countries %}
-    <tr><td><div id="{{ country }}">placeholder</div></td></tr>
-{% endfor %}
+        <tr><td><div id="{{ country }}">placeholder</div></td></tr>
     </tbody>
     </table>
     <script>
@@ -109,10 +86,12 @@
           }
         }
 
-        function graph(country, covid, p1, l1, p2, l2, label1, label2, latest_cases, latest_percap) {
+        function graph(country, covid, p1, l1, p2, l2, label1, label2) {
             var divname = "div#".concat(country);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
+
+            var latest_cases = Math.round(covid[covid.length-1]["ncases7day"]);
 
             try {
                 // append a new row to hold this plot
@@ -178,7 +157,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = country + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
+                var title = country + ": " + latest_cases + " New Cases";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -256,138 +235,22 @@
             }
 
         }
-        function fixed_y(country, covid, l1, y_max, label1, latest_cases, latest_percap) {
-            // This function uses a fixed scale for the y axis.  It's used to show the per-capita plots
-            // so we can more easily compare between countries.
-            var divname = "div#".concat(country);
-            var firstcolor = "#a94352";
-            var secondcolor = "#69b3a2";
-
-            try {
-                // append a new row to hold this plot
-                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", country);
-
-                // label the div with the name of the country whose data we're processing
-                d3.select(divname).text("").attr("text-anchor", "center");
-
-                // set the dimensions and margins of the graph
-                var margin = {top: 10, right: 30, bottom: 30, left: 60},
-                    width = 1024 - margin.left - margin.right,
-                    height = 200 - margin.top - margin.bottom;
-
-                // insert an SVG object into the div to hold our plot
-                var svg = d3.select(divname)
-                    .append("svg")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform",
-                        "translate(" + margin.left + "," + margin.top + ")");
-
-                // Add X axis (range of dates in the data)
-                var x = d3.scaleTime()
-                    .domain(d3.extent(covid.map(d => d.day)))
-                    .range([0, width]);
-                svg.append("g")
-                    .attr("transform", "translate(0," + height + ")")
-                    .call(d3.axisBottom(x));
-
-                // Add Y axis
-                var y = d3.scaleLinear()
-                    .domain(d3.extent([0, y_max]))
-                    .range([height, 0]);
-                svg.append("g")
-                    .call(d3.axisLeft(y))
-                    .style("fill", firstcolor);
-                // Add label for the first Y axis
-                svg.append("text")
-                    .attr("text-anchor", "end")
-                    .style("font-family", "sans-serif")
-                    .attr("transform", "rotate(-90)")
-                    .attr("y", 20)
-                    .attr("x", 0)
-                    .text(label1)
-                    .style("fill", firstcolor);
-                // repeat the y axis on the right hand side to make it easier to read
-                var yd = d3.scaleLinear()
-                    .domain(d3.extent([0, y_max]))
-                    .range([height, 0]);
-                svg.append("g")
-                    .call(d3.axisRight(yd))
-                    .attr("transform", "translate(" + width + ",0)")
-                    .style("fill", firstcolor);
-
-                // Add chart title
-                var title = country + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
-                svg.append("text")
-                    .attr("text-anchor", "center")
-                    .attr("y", margin.top)
-                    .attr("x", width / 2)
-                    .text(title)
-                    .style("font-family", "sans-serif")
-                    .style("fill", "black");
-
-                // add line plot
-                svg.append("path")
-                    .datum(covid)
-                    .attr("fill", "none")
-                    .attr("stroke", firstcolor)
-                    .attr("stroke-width", 1.5)
-                    .attr("d", d3.line()
-                        .defined(d => !isNaN(d[l1]))
-                        .x(d => x(d.day))
-                        .y(d => y(d[l1]))
-                    );
-            }
-            catch(err) {
-                d3.select(divname).text(country.concat("<br>", err));
-            }
-
-        }
         function display_selected() {
-            var view = document.getElementById("select_view").value;
-            var sort_by = document.getElementById("select_sort").value;
 
-            // sort the regions into the desired order
-            if (sort_by == "0") {
-                // sort by geographic location
-                sort_helper.sort(compareFirstColumn);
-            } else if (sort_by == "1") {
-                // sort by some data value
-                sort_helper.sort(compareSecondColumn);
-            } else if (sort_by == "2") {
-                // sort by some data value
-                sort_helper.sort(compareThirdColumn);
-            }
             // remove the old rows
             d3.select("tbody#plots").selectAll("tr").remove();
 
             // display the items in the appropriately sorted order
-            if (view == "cases") {
-                sort_helper.forEach(
-                    item => graph(item[0], data[item[0]],
+            countries.forEach(
+                function (country) {
+                    graph(country, data[country],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
-                        "New Cases", "New Deaths", item[1], item[2]
-                    )
-                );
-            } else if (view == "perCapita") {
-                sort_helper.forEach(
-                    item => fixed_y(item[0], data[item[0]],
-                        "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
-                        max_per_capita,
-                        "cases per 100k pop",
-                        item[1], item[2]
-                    )
-                );
-            } else if (view == "results") {
-                sort_helper.forEach(
-                    item => graph(item[0], data[item[0]],
-                        "testing", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction", item[1], item[2]
-                    )
-                );
-            }
-        }
+                        "New Cases", "New Deaths"
+            );
+
+                }
+            )
+         }
 
         // convert "day" values to javascript date.  We need to do this only once.
         countries.forEach(
@@ -401,35 +264,6 @@
         )
 
         display_selected();
-
-        // sort functions
-        function ascending(a, b) {
-            // sort in ascending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a < b) ? -1 : 1;
-            }
-        }
-        function descending(a, b) {
-            // sort in descending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a > b) ? -1 : 1;
-            }
-        }
-        function compareFirstColumn(a, b) {
-            return ascending(a[0], b[0])
-        }
-        function compareSecondColumn(a, b) {
-            return descending(a[1], b[1])
-        }
-        function compareThirdColumn(a, b) {
-            return descending(a[2], b[2])
-        }
     </script>
 
 </body>
