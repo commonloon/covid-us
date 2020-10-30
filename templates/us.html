@@ -20,7 +20,7 @@
         }
         function latest_per_capita(d) {
             // return the most recent per-capita new case count
-            return d[d.length-1]["perCapCases"]
+            return d[d.length-1]["perCapCases7day"]
         }
 
     </script>
@@ -109,7 +109,7 @@
           }
         }
 
-        function graph(state, covid, p1, l1, p2, l2, label1, label2, max1=null, max2=null) {
+        function graph(state, covid, p1, l1, p2, l2, label1, label2, latest_cases, latest_percap, max1=null, max2=null) {
             var divname = "div#".concat(state);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
@@ -187,11 +187,12 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
+                var title = state + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
-                    .attr("x", width / 2)
-                    .text(state)
+                    .attr("x", width / 4)
+                    .text(title)
                     .style("font-family", "sans-serif")
                     .style("fill", "black");
 
@@ -285,24 +286,25 @@
             placeholders.data(sort_helper).attr("id", d => d[0]);
 
             if (view == "cases") {
-                states.forEach(
-                    state => graph(state, data[state],
+                sort_helper.forEach(
+                    row => graph(row[0], data[row[0]],
                         "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
-                        "New Cases", "New Deaths"
+                        "New Cases", "New Deaths", row[1], row[2]
                     )
                 );
             } else if (view == "percap") {
-                states.forEach(
-                    state => graph(state, data[state],
+                sort_helper.forEach(
+                    row => graph(row[0], data[row[0]],
                         "perCapCases", "perCapCases7day", "perCapDeaths", "perCapDeaths7day",
-                        "New Cases/100k pop", "New Deaths/100k pop", maxPerCapCases, maxPerCapDeaths
+                        "New Cases/100k pop", "New Deaths/100k pop", row[1], row[2],
+                        maxPerCapCases, maxPerCapDeaths
                     )
                 );
             } else if (view == "results") {
-                states.forEach(
-                    state => graph(state, data[state],
+                sort_helper.forEach(
+                    row => graph(row[0], data[row[0]],
                         "totalTestResultsIncrease", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction"
+                        "# of new test results", "positive fraction", row[1]. row[2]
                     )
                 );
             }
