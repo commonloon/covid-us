@@ -10,6 +10,19 @@
         var maxPerCapCases = {{ maxPerCapCases|tojson }};
         var maxPerCapDeaths = {{ maxPerCapDeaths|tojson }};
         var data = {{ data|tojson }};
+                var sort_helper = [];  // start off sorted by countries
+        states.forEach(
+            region => sort_helper.push([region, latest_case_count(data[region]), latest_per_capita(data[region])])
+        );
+        function latest_case_count(d) {
+            // return the most recent moving average of new cases
+            return Math.round(d[d.length-1]["ncases7day"]);
+        }
+        function latest_per_capita(d) {
+            // return the most recent per-capita new case count
+            return d[d.length-1]["perCapCases"]
+        }
+
     </script>
     <link rel="stylesheet" href="static/covid.css">
 </head>
@@ -37,11 +50,22 @@
     <p>NOTE: Negative values of positiveIncrease or deathIncrease were discarded before making these plots</p>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
 
-    <select id="select_view" onchange="display_selected()">
-        <option value="cases">New Cases and Deaths</option>
-        <option value="percap">New Cases and Deaths per 100k population</option>
-        <option value="results"># of Test Results and Positive Fraction</option>
-    </select>
+    <table>
+        <tr>
+            <select id="select_view" onchange="display_selected()">
+                <option value="cases">New Cases and Deaths</option>
+                <option value="percap">New Cases and Deaths per 100k population</option>
+                <option value="results"># of Test Results and Positive Fraction</option>
+            </select>
+        </tr>
+        <tr><td>Sort by:</td><td>
+            <select id="select_sort" onchange="display_selected()">
+                <option value="0">Alphabetical</option>
+                <option value="1">Latest new case count</option>
+                <option value="2">Latest per capita new case count</option>
+            </select>
+        </td></tr>
+    </table>
 
     <table class="plot_table">
         <tr>
@@ -54,7 +78,7 @@
         </tr>
     </table>
     <script>
-                class Tooltip {
+        class Tooltip {
           constructor(svg, x, y) {
             this.node = svg.append("g")
                 .attr("pointer-events", "none").attr("display", "none")
@@ -91,8 +115,6 @@
             var secondcolor = "#69b3a2";
 
             try {
-
-
                 // label the div with the name of the US state whose data we're processing
                 var div = d3.select(divname).text("").attr("text-anchor", "center");
 
@@ -244,6 +266,24 @@
         }
         function display_selected() {
             var view = document.getElementById("select_view").value;
+            var sort_by = document.getElementById("select_sort").value;
+
+            // sort the regions into the desired order
+            if (sort_by == "0") {
+                // sort by geographic location
+                sort_helper.sort(compareFirstColumn);
+            } else if (sort_by == "1") {
+                // sort by some data value
+                sort_helper.sort(compareSecondColumn);
+            } else if (sort_by == "2") {
+                // sort by some data value
+                sort_helper.sort(compareThirdColumn);
+            }
+            // delete the ids from the table entries, then add them back in sorted order
+            var placeholders = d3.select("table.plot_table").selectAll("div");
+            placeholders.node().removeAttribute("id");
+            placeholders.data(sort_helper).attr("id", d => d[0]);
+
             if (view == "cases") {
                 states.forEach(
                     state => graph(state, data[state],
@@ -280,6 +320,36 @@
         )
 
         display_selected();
+
+        // sort functions
+        function ascending(a, b) {
+            // sort in ascending order
+            if (a == b) {
+                return 0;
+            }
+            else {
+                return (a < b) ? -1 : 1;
+            }
+        }
+        function descending(a, b) {
+            // sort in descending order
+            if (a == b) {
+                return 0;
+            }
+            else {
+                return (a > b) ? -1 : 1;
+            }
+        }
+        function compareFirstColumn(a, b) {
+            return ascending(a[0], b[0])
+        }
+        function compareSecondColumn(a, b) {
+            return descending(a[1], b[1])
+        }
+        function compareThirdColumn(a, b) {
+            return descending(a[2], b[2])
+        }
+
     </script>
 
 </body>
