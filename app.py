@@ -85,13 +85,13 @@ def us():
     us_data['ndeaths7day'] = us_data.deathIncrease.rolling(7).mean()
     us_data['nresults7day'] = us_data.totalTestResultsIncrease.rolling(7).mean()
     us_data['pf7day'] = us_data.positiveFraction.rolling(7).mean()
-    us_data['perCapCases'] = us_data.positiveIncrease * 100000 / states_pop['US']
+    us_data['perCapCases'] = us_data.positiveIncrease * 100000 / states_pop['USA']
     us_data['perCapCases7day'] = us_data.perCapCases.rolling(7).mean()
-    us_data['perCapDeaths'] = us_data.deathIncrease * 100000 / states_pop['US']
+    us_data['perCapDeaths'] = us_data.deathIncrease * 100000 / states_pop['USA']
     us_data['perCapDeaths7day'] = us_data.perCapDeaths.rolling(7).mean()
     us_data['day'] = us_data['day'].dt.strftime('%Y-%m-%d')
-    data['US'] = us_data.to_dict(orient='records')
-    states.append('US')
+    data['USA'] = us_data.to_dict(orient='records')
+    states.append('USA')
 
     rendered = render_template("us.html", states=states, data=data, last_day=last_day,
                                maxPerCapCases=maxPerCapCases,

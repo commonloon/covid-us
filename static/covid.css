@@ -1,5 +1,12 @@
 .plot_table tr:nth-child(even) {background-color: floralwhite;}
 .plot_table tr:nth-child(odd) {background-color: antiquewhite;}
+#plot_table tr:nth-child(even) {background-color: floralwhite;}
+#plot_table tr:nth-child(odd) {background-color: antiquewhite;}
+#numeric_table tr:nth-child(even) {background-color: floralwhite;}
+#numeric_table tr:nth-child(odd) {background-color: antiquewhite;}
+#numeric_table th {background: burlywood; font-family: "sans-serif"; padding: 5px 7px 5px;}
+#numeric_table td {font-family: sans-serif;}
+
 p,h1,h2 {
  font-size: 100%;
  font-family: sans-serif;
