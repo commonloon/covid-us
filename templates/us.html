@@ -86,8 +86,8 @@
             <td>
             <select id="select_sort" onchange="display_selected()">
                 <option value="0">Alphabetical</option>
-                <option value="1">Latest new case count</option>
-                <option value="2">Latest per capita new case count</option>
+                <option value="1">{{ last_day }} new case count</option>
+                <option value="2">{{ last_day }} per capita new case count</option>
             </select>
             </td>
         </tr>
@@ -375,8 +375,8 @@
             <th colspan="2" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
-            <th onclick="display_tabular_data(1)"> avg new cases </th>
-            <th onclick="display_tabular_data(2)"> avg new cases / 100k pop </th>
+            <th onclick="display_tabular_data(1)"> 7 day avg new cases </th>
+            <th onclick="display_tabular_data(2)"> 7 day avg new cases / 100k pop </th>
         </tr>
         </thead>
         <tbody id="ntb"></tbody>

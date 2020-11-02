@@ -10,11 +10,34 @@
         var data = {{ data|tojson }};
         var sort_helper = [];  // start off sorted by provinces
         provinces.forEach(
-            prov => sort_helper.push([prov, latest_case_count(data[prov])])
+            prov => sort_helper.push([prov, latest_case_count(data[prov]), latest_per_capita(data[prov])])
         );
+        var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
         function latest_case_count(d) {
             // return the most recent moving average of new cases
             return Math.round(d[d.length-1]["ncases7day"]);
+        }
+        function latest_per_capita(d) {
+            // return the most recent per-capita new case count
+            return d[d.length-1]["perCapCases7day"]
+        }
+        function ascending(a, b) {
+            // sort in ascending order
+            if (a == b) {
+                return 0;
+            }
+            else {
+                return (a < b) ? -1 : 1;
+            }
+        }
+        function descending(a, b) {
+            // sort in descending order
+            if (a == b) {
+                return 0;
+            }
+            else {
+                return (a > b) ? -1 : 1;
+            }
         }
     </script>
     <link rel="stylesheet" href="static/covid.css">
@@ -58,7 +81,7 @@
         <tr><td>Sort by:</td><td>
             <select id="select_sort" onchange="display_selected()">
                 <option value="0">Alphabetical</option>
-                <option value="1">Latest new case count</option>
+                <option value="1">{{ last_day }} new case count</option>
             </select>
         </td></tr>
     </table>
@@ -294,24 +317,7 @@
 
         display_selected();
 
-        function ascending(a, b) {
-            // sort in ascending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a < b) ? -1 : 1;
-            }
-        }
-        function descending(a, b) {
-            // sort in descending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a > b) ? -1 : 1;
-            }
-        }
+        // sort functions
         function compareFirstColumn(a, b) {
             return ascending(a[0], b[0])
         }
@@ -322,6 +328,56 @@
             return descending(a[2], b[2])
         }
 
+    </script>
+    <p>&nbsp;</p>
+    <hr>
+    <p>&nbsp;</p>
+    <p>Click on a column header to sort the table below.</p>
+    <table id="numeric_table">
+        <thead>
+        <tr>
+            <th rowspan="2" align="center" onclick="display_tabular_data(0)"> Region </th>
+            <th colspan="2" align="center">Date: {{ last_day }}</th>
+        </tr>
+        <tr>
+            <th onclick="display_tabular_data(1)"> 7 day avg new cases </th>
+            <th onclick="display_tabular_data(2)"> 7 day avg new cases / 100k pop </th>
+        </tr>
+        </thead>
+        <tbody id="ntb"></tbody>
+    </table>
+
+    <script>
+        // select the table we're working on
+        var sort_table = d3.select("#numeric_table");
+        // add sort function to the table header
+        display_tabular_data(0);
+        function display_tabular_data(column_index) {
+            if (column_index == 0) {
+                table_sort_helper.sort(function (a, b) {return ascending(a[column_index], b[column_index])}, inplace=true);
+            } else {
+                table_sort_helper.sort(function (a, b) {return descending(a[column_index], b[column_index])}, inplace=true);
+            }
+            // add table rows
+            var sort_table = d3.select("#numeric_table").select("tbody");
+            sort_table.selectAll("tr").remove(); // remove the existing table contents
+            var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
+                .selectAll("td")
+                .data(function(d) {
+                    return d;})
+                .enter()
+                .append("td")
+                .attr("align", "right")
+                .text(function(d) {
+                if (typeof d === 'string' || d instanceof String || Number.isInteger(d)) {
+                    // display strings or integers without change
+                    return d;
+                } else {
+                    // cut off floats at the first decimal place
+                    return d.toFixed(1);
+                }
+            });
+        }
     </script>
 
 </body>

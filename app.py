@@ -51,6 +51,7 @@ def us():
     states_df.drop(states_df[(states_df["positiveIncrease"] < 0)].index, inplace=True)
 
     last_day = max(states_df.date)
+    last_day = datetime.strptime(str(last_day), '%Y%m%d').strftime('%Y-%m-%d')
 
     # gather the relevant data for the states
     data = {}
@@ -180,6 +181,13 @@ def europe():
                      headline="Sum of all the individual country data.",
                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
 
+    # drop negative death counts, e.g. Spain had a very large negative death count in June
+    # which makes the plot very hard to read.
+    df.drop(df[(df["deaths"] < 0)].index, inplace=True)
+
+    # select the countries to plot for each region.
+    # There's no particular reason for choosing these countries, other than I was interested in
+    # seeing the corresponding charts.
     europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
                      'United_Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
                      'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
@@ -259,17 +267,17 @@ def canada():
         'Canada': 'Canada'
     }
 
-
     data = {}
     for prov in provinces:
         c = cases.loc[cases.province == prov, ['day', 'cases']]
         d = deaths.loc[deaths.province == prov, ['day', 'deaths']]
         t = tests.loc[deaths.province == prov, ['day', 'testing']]
-        data[prov_map[prov]] = canada_to_dict(c, d, t)
+        data[prov_map[prov]] = canada_to_dict(prov, c, d, t)
         pass
 
     # add the national data
-    data[prov_map['Canada']] = canada_to_dict(national_cases.filter(['day', 'cases'], axis=1),
+    data[prov_map['Canada']] = canada_to_dict('Canada',
+                                              national_cases.filter(['day', 'cases'], axis=1),
                                               national_deaths.filter(['day', 'deaths'], axis=1),
                                               national_tests.filter(['day', 'testing'], axis=1))
     # render the HTML file and save it to S3
@@ -280,7 +288,7 @@ def canada():
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
 
 
-def canada_to_dict(c, d, t):
+def canada_to_dict(province, c, d, t):
     """
     Canadian data comes from several different files that need to be bundled up
     into a dict to be passed to the rendering template.
@@ -303,6 +311,28 @@ def canada_to_dict(c, d, t):
     s['pf7day'] = s.positiveFraction.rolling(7).mean()
     s['testing'].clip(-1, inplace=True)  # discard negative numbers of new test results
     s['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
+
+    prov_pop = {
+        'Alberta': 4421876,
+        'BC': 5147712,
+        'Manitoba': 1379263,
+        'NL': 522103,
+        'NWT': 45161,
+        'New Brunswick': 781476,
+        'Nova Scotia': 979351,
+        'Nunavut': 39353,
+        'Ontario': 14734014,
+        'PEI': 159625,
+        'Quebec': 8574571,
+        'Repatriated': 1,
+        'Saskatchewan': 1178681,
+        'Yukon': 42052,
+        'Canada': 38005238
+    }
+    s['perCapCases'] = s.cases * 100000 / prov_pop[province]
+    s['perCapCases7day'] = s.perCapCases.rolling(7).mean()
+    s['perCapDeaths'] = s.deaths * 100000 / prov_pop[province]
+    s['perCapDeaths7day'] = s.perCapDeaths.rolling(7).mean()
 
     s['day'] = s['day'].dt.strftime('%Y-%m-%d')
 
