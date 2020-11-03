@@ -247,8 +247,10 @@ def canada():
     # most recent day on which the data was updated
     last_day = max(cases.day).strftime("%Y-%m-%d")
 
-    # Get list of provinces
+    # Get list of provinces.
+    # Skip 'Repatriated' as that data was never complete enough to be useful
     provinces = sorted(cases.province.unique())
+    provinces.remove('Repatriated')
     prov_map = {
         'Alberta': 'AB',
         'BC': 'BC',
@@ -261,7 +263,6 @@ def canada():
         'Ontario': 'ON',
         'PEI': 'PEI',
         'Quebec': 'QC',
-        'Repatriated': 'Repatriated',
         'Saskatchewan': 'SK',
         'Yukon': 'YT',
         'Canada': 'Canada'
@@ -324,7 +325,6 @@ def canada_to_dict(province, c, d, t):
         'Ontario': 14734014,
         'PEI': 159625,
         'Quebec': 8574571,
-        'Repatriated': 1,
         'Saskatchewan': 1178681,
         'Yukon': 42052,
         'Canada': 38005238

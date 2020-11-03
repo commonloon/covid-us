@@ -13,36 +13,36 @@
         var max_per_capita = {{ max_per_capita }};
         var sort_helper = [];  // start off sorted by countries
         countries.forEach(
-            region => sort_helper.push([region, latest_case_count(data[region]), latest_per_capita(data[region])])
+            region => sort_helper.push({
+                "region": region,
+                "avg_cases": Math.round(latest(data[region], "ncases7day")),
+                "avg_per_capita_cases": latest(data[region], "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"),
+                "avg_deaths": latest(data[region], "ndeaths7day")
+        })
         );
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
-        function latest_case_count(d) {
-            // return the most recent moving average of new cases
-            return Math.round(d[d.length-1]["ncases7day"]);
+        function latest(d, field) {
+            // return the most recent value for field; assumes the data are sorted by day
+            return d[d.length-1][field];
         }
-        function latest_per_capita(d) {
-            // return the most recent per-capita new case count
-            return d[d.length-1]["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]
+
+        // sort function
+        function dynamicSort(property) {
+            // NOTE: sorts in descending order if property name prefixed by "-", e.g. "-region"
+            var sortOrder = 1;
+            if(property[0] === "-") {
+                sortOrder = -1;
+                property = property.substr(1);
+            }
+            return function (a,b) {
+                /* next line works with strings and numbers,
+                 * and you may want to customize it to your needs
+                 */
+                var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+                return result * sortOrder;
+            }
         }
-        // sort functions
-        function ascending(a, b) {
-            // sort in ascending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a < b) ? -1 : 1;
-            }
-        }
-        function descending(a, b) {
-            // sort in descending order
-            if (a == b) {
-                return 0;
-            }
-            else {
-                return (a > b) ? -1 : 1;
-            }
-        }    </script>
+        </script>
     <link rel="stylesheet" href="static/covid.css">
 </head>
 
@@ -84,9 +84,9 @@
         </tr>
         <tr><td>Sort by:</td><td>
             <select id="select_sort" onchange="display_selected()">
-                <option value="0">Alphabetical</option>
-                <option value="1">{{ last_day }} new case count</option>
-                <option value="2">{{ last_day }} per capita new case count</option>
+                <option value="region">Alphabetical</option>
+                <option value="-avg_cases">{{ last_day }} new case count</option>
+                <option value="-avg_per_capita_cases">{{ last_day }} per capita new case count</option>
             </select>
         </td></tr>
     </table>
@@ -368,41 +368,33 @@
             var sort_by = document.getElementById("select_sort").value;
 
             // sort the regions into the desired order
-            if (sort_by == "0") {
-                // sort by geographic location
-                sort_helper.sort(compareFirstColumn);
-            } else if (sort_by == "1") {
-                // sort by some data value
-                sort_helper.sort(compareSecondColumn);
-            } else if (sort_by == "2") {
-                // sort by some data value
-                sort_helper.sort(compareThirdColumn);
-            }
+            sort_helper.sort(dynamicSort(sort_by), inplace=true);
+
             // remove the old rows
             d3.select("tbody#plots").selectAll("tr").remove();
 
             // display the items in the appropriately sorted order
             if (view == "cases") {
                 sort_helper.forEach(
-                    item => graph(item[0], data[item[0]],
+                    row => graph(row.region, data[row.region],
                         "cases", "ncases7day", "deaths", "ndeaths7day",
-                        "New Cases", "New Deaths", item[1], item[2]
+                        "New Cases", "New Deaths", row.avg_cases, row.avg_per_capita_cases
                     )
                 );
             } else if (view == "perCapita") {
                 sort_helper.forEach(
-                    item => fixed_y(item[0], data[item[0]],
+                    row => fixed_y(row.region, data[row.region],
                         "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
                         max_per_capita,
                         "cases per 100k pop",
-                        item[1], item[2]
+                        row.avg_cases, row.avg_per_capita_cases
                     )
                 );
             } else if (view == "results") {
                 sort_helper.forEach(
-                    item => graph(item[0], data[item[0]],
+                    row => graph(row.region, data[row.region],
                         "testing", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction", item[1], item[2]
+                        "# of new test results", "positive fraction", row.avg_cases, row.avg_per_capita_cases
                     )
                 );
             }
@@ -421,16 +413,6 @@
 
         display_selected();
 
-        // sort functions
-        function compareFirstColumn(a, b) {
-            return ascending(a[0], b[0])
-        }
-        function compareSecondColumn(a, b) {
-            return descending(a[1], b[1])
-        }
-        function compareThirdColumn(a, b) {
-            return descending(a[2], b[2])
-        }
     </script>
     <p>&nbsp;</p>
     <hr>
@@ -439,12 +421,13 @@
     <table id="numeric_table">
         <thead>
         <tr>
-            <th rowspan="2" align="center" onclick="display_tabular_data(0)"> Country </th>
-            <th colspan="2" align="center">Date: {{ last_day }}</th>
+            <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Country </th>
+            <th colspan="3" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
-            <th onclick="display_tabular_data(1)"> 7 day avg new cases </th>
-            <th onclick="display_tabular_data(2)"> 7 day avg new cases / 100k pop </th>
+            <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 14 day avg </th>
+            <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
         </tr>
         </thead>
         <tbody id="ntb"></tbody>
@@ -454,20 +437,18 @@
         // select the table we're working on
         var sort_table = d3.select("#numeric_table");
         // add sort function to the table header
-        display_tabular_data(0);
-        function display_tabular_data(column_index) {
-            if (column_index == 0) {
-                table_sort_helper.sort(function (a, b) {return ascending(a[column_index], b[column_index])}, inplace=true);
-            } else {
-                table_sort_helper.sort(function (a, b) {return descending(a[column_index], b[column_index])}, inplace=true);
-            }
+        display_tabular_data("region");
+        function display_tabular_data(sort_by) {
+            // sort the data as requested
+            table_sort_helper.sort(dynamicSort(sort_by), inplace=true);
+
             // add table rows
             var sort_table = d3.select("#numeric_table").select("tbody");
             sort_table.selectAll("tr").remove(); // remove the existing table contents
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return d;})
+                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_deaths];})
                 .enter()
                 .append("td")
                 .attr("align", "right")

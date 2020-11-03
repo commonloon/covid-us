@@ -369,7 +369,7 @@
         // select the table we're working on
         var sort_table = d3.select("#numeric_table");
         // add sort function to the table header
-        display_tabular_data(0);
+        display_tabular_data("region");
         function display_tabular_data(sort_by) {
             table_sort_helper.sort(dynamicSort(sort_by), inplace=true);
 
