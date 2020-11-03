@@ -58,7 +58,10 @@ def us():
     maxPerCapCases = 0
     maxPerCapDeaths = 0
     for state in states:
-        s = states_df.loc[states_df.state == state, ['day', 'positiveIncrease', 'deathIncrease', 'totalTestResultsIncrease', 'positiveFraction']]
+        s = states_df.loc[states_df.state == state,
+                          ['day', 'positiveIncrease', 'deathIncrease',
+                           'totalTestResultsIncrease', 'positiveFraction',
+                           'hospitalizedCurrently', 'inIcuCurrently']]
         s.sort_values(by='day', inplace=True)
 
         s['ncases7day'] = s.positiveIncrease.rolling(7).mean()
@@ -69,6 +72,8 @@ def us():
         s['perCapCases7day'] = s.perCapCases.rolling(7).mean()
         s['perCapDeaths'] = s.deathIncrease * 100000 / states_pop[state]
         s['perCapDeaths7day'] = s.perCapDeaths.rolling(7).mean()
+        s['hosp7day'] = s.hospitalizedCurrently.rolling(7).mean()
+        s['icu7day'] = s.inIcuCurrently.rolling(7).mean()
 
         # we need max values so we can do all the per capita plots to the same scale
         # We use the rolling averages to set the axes because outliers on the individual points make

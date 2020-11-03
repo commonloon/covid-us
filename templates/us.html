@@ -15,10 +15,15 @@
             region => sort_helper.push({
                 "region": region,
                 "avg_cases": latest_case_count(data[region]),
-                "avg_per_capita_cases": latest_per_capita(data[region])
+                "avg_per_capita_cases": latest_per_capita(data[region]),
+                "avg_hospitalized": latest(data[region], "hosp7day"),
+                "avg_icu": latest(data[region], "icu7day")
             })
         );
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
+        function latest(d, field) {
+            return d[d.length-1][field];
+        }
         function latest_case_count(d) {
             // return the most recent moving average of new cases
             return Math.round(d[d.length-1]["ncases7day"]);
@@ -78,6 +83,7 @@
             <select id="select_view" onchange="display_selected()">
                 <option value="cases">New Cases and Deaths</option>
                 <option value="percap">New Cases and Deaths per 100k population</option>
+                <option value="hospital"># of covid patients in hospital / ICU</option>
                 <option value="results"># of Test Results and Positive Fraction</option>
             </select>
             </td>
@@ -113,10 +119,12 @@
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
-            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+                .attr("x", "-35").attr("width", "74").attr("y", "-52").attr("height", "54").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._cases = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._deaths = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._hospital = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._icu = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
@@ -130,6 +138,9 @@
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.positiveIncrease) + " new cases";
               this._deaths.textContent = d3.format("d")(d.deathIncrease) + " new deaths";
+              this._hospital.textContent = d3.format("d")(d.hospitalizedCurrently) + " in hospital";
+              var inIcu = isNaN(d.inIcuCurrently) ? "unknown" : d3.format("d")(d.inIcuCurrently);
+              this._icu.textContent = inIcu + " in ICU";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -321,6 +332,14 @@
                         maxPerCapCases, maxPerCapDeaths
                     )
                 );
+            } else if (view == "hospital") {
+                sort_helper.forEach(
+                    row => graph(row["region"], data[row["region"]],
+                        "hospitalizedCurrently", "hosp7day", "inIcuCurrently", "icu7day",
+                        "In Hospital", "In ICU",
+                        row["avg_cases"], row["avg_per_capita_cases"]
+                    )
+                );
             } else if (view == "results") {
                 sort_helper.forEach(
                     row => graph(row["region"], data[row["region"]],
@@ -355,11 +374,13 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> State </th>
-            <th colspan="2" align="center">Date: {{ last_day }}</th>
+            <th colspan="4" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
-            <th onclick="display_tabular_data('-avg_cases')"> 7 day avg new cases </th>
-            <th onclick="display_tabular_data('-avg_per_capita_cases')"> 7 day avg new cases / 100k pop </th>
+            <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg</th>
+            <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-avg_hospitalized')"> in hospital <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-avg_icu')"> in ICU <br> 7 day avg </th>
         </tr>
         </thead>
         <tbody id="ntb"></tbody>
@@ -379,7 +400,7 @@
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return [d.region, d.avg_cases, d.avg_per_capita_cases];})
+                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_hospitalized, d.avg_icu];})
                 .enter()
                 .append("td")
                 .attr("align", "right")
