@@ -45,6 +45,9 @@
                  * and you may want to customize it to your needs
                  */
                 var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+                if (Number.isFinite(a[property]) && !Number.isFinite(b[property])) {
+                    result = 1;  // treat any number as greater than a NaN or a string
+                }
                 return result * sortOrder;
             }
         }
@@ -400,19 +403,18 @@
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_hospitalized, d.avg_icu];})
+                    var icu = isNaN(d.avg_icu) ? "" : d.avg_icu;
+                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_hospitalized, icu];})
                 .enter()
                 .append("td")
                 .attr("align", "right")
                 .text(function(d) {
-                if (typeof d === 'string' || d instanceof String || Number.isInteger(d)) {
-                    // display strings or integers without change
-                    return d;
-                } else {
-                    // cut off floats at the first decimal place
-                    return d.toFixed(1);
-                }
-            });
+                    if (Number.isFinite(d) && !Number.isInteger(d)) {
+                        return d.toFixed(1);
+                    } else {
+                        return d;
+                    }
+                });
         }
     </script>
 

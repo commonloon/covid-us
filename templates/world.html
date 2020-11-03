@@ -39,6 +39,9 @@
                  * and you may want to customize it to your needs
                  */
                 var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+                if (Number.isFinite(a[property]) && !Number.isFinite(b[property])) {
+                    result = 1;  // treat any number as greater than a NaN or a string
+                }
                 return result * sortOrder;
             }
         }
