@@ -102,8 +102,8 @@ def us():
     rendered = render_template("us.html", states=states, data=data, last_day=last_day,
                                maxPerCapCases=maxPerCapCases,
                                maxPerCapDeaths=maxPerCapDeaths)
-    write_html_to_s3(rendered, "us.html", "covid-us")
-    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/us.html\"></head><body><p>Updated canada.html</p></body></html>"
+    write_html_to_s3(rendered, "us.html", "covid.pacificloon.ca")
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
 def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
                       title,
@@ -142,7 +142,7 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
                                title=title,
                                headline=headline,
                                source_data_url=source_data_url)
-    write_html_to_s3(rendered, output_filename, "covid-us")
+    write_html_to_s3(rendered, output_filename, "covid.pacificloon.ca")
 
 def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
     world_df = df.groupby(['day'])[['day', 'cases', 'deaths']].sum()
@@ -163,7 +163,7 @@ def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
                                title=title,
                                headline=headline,
                                source_data_url=source_data_url)
-    write_html_to_s3(rendered, "worldwide.html", "covid-us")
+    write_html_to_s3(rendered, "worldwide.html", "covid.pacificloon.ca")
 
 @app.route('/europe')
 @app.route('/dev/europe')
@@ -226,7 +226,7 @@ def europe():
                       source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
 
     # return an HTTP redirect to the static file in S3
-    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
 
 
 # The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
@@ -304,10 +304,10 @@ def canada():
     # render the HTML file and save it to S3
     rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data,
                                last_day=last_day, arcgis_last_day=arcgis_last_day)
-    write_html_to_s3(rendered, "canada.html", "covid-us")
+    write_html_to_s3(rendered, "canada.html", "covid.pacificloon.ca")
 
     # return an HTTP redirect to the static file in S3
-    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
 
 
 def canada_to_dict(province, c, d, t, a, h, i):
@@ -379,7 +379,7 @@ def write_html_to_s3(content, filename, bucket):
 
     # Write buffer to S3 object
     s3_resource.Object(bucket, f'{filename}').put(
-        Body=content, ContentType="text/html"
+        Body=content, ContentType="text/html", ACL="public-read"
     )
 
 if __name__ == '__main__':
