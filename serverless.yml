@@ -62,8 +62,9 @@ provider:
       Action:
         - s3:PutObject
         - s3:GetObject
+        - s3:PutObjectAcl
       Resource:
-        - 'arn:aws:s3:::covid-us/*'
+        - "arn:aws:s3:::covid.pacificloon.ca/*"
 
 # you can define service wide environment variables here
 #  environment:

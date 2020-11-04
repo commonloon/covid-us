@@ -130,7 +130,7 @@
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.positiveIncrease) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
               this._active.textContent = d3.format("d")(d.TotalActive) + " active cases";
