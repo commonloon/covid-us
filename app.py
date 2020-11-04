@@ -247,10 +247,17 @@ def canada():
     national_tests = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_canada/testing_timeseries_canada.csv')
     national_cases['day'] = pd.to_datetime(national_cases['date_report'].apply(str),dayfirst=True)
     national_deaths['day'] = pd.to_datetime(national_deaths['date_death_report'].apply(str),dayfirst=True)
-    national_tests['day'] = pd.to_datetime(national_tests['date_testing'].apply(str),dayfirst=True)
+    national_tests['day'] = pd.to_datetime(national_tests['date_testing'].apply(str), dayfirst=True)
+
+    # get hospitalization data
+    arcgis = pd.read_csv('https://opendata.arcgis.com/datasets/3afa9ce11b8842cb889714611e6f3076_0.csv')
+    arcgis['day'] = pd.to_datetime(arcgis['SummaryDate'].apply(str),
+                                   dayfirst=False, format="%Y/%m/%d").dt.tz_convert(None)
+    arcgis.day -= pd.Timedelta(hours=12)
 
     # most recent day on which the data was updated
     last_day = max(cases.day).strftime("%Y-%m-%d")
+    arcgis_last_day = max(arcgis.day).strftime("%Y-%m-%d")
 
     # Get list of provinces.
     # Skip 'Repatriated' as that data was never complete enough to be useful
@@ -275,17 +282,25 @@ def canada():
 
     data = {}
     for prov in provinces:
+        arcgis_abbrev = prov_map[prov]
         c = cases.loc[cases.province == prov, ['day', 'cases']]
         d = deaths.loc[deaths.province == prov, ['day', 'deaths']]
-        t = tests.loc[deaths.province == prov, ['day', 'testing']]
-        data[prov_map[prov]] = canada_to_dict(prov, c, d, t)
+        t = tests.loc[tests.province == prov, ['day', 'testing']]
+        a = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalActive']]
+        h = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalHospitalized']]
+        i = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalICU']]
+        data[prov_map[prov]] = canada_to_dict(prov, c, d, t, a, h, i)
         pass
 
     # add the national data
     data[prov_map['Canada']] = canada_to_dict('Canada',
                                               national_cases.filter(['day', 'cases'], axis=1),
                                               national_deaths.filter(['day', 'deaths'], axis=1),
-                                              national_tests.filter(['day', 'testing'], axis=1))
+                                              national_tests.filter(['day', 'testing'], axis=1),
+                                              arcgis.loc[arcgis.Abbreviation == 'CA', ['day', 'TotalActive']],
+                                              arcgis.loc[arcgis.Abbreviation == 'CA', ['day', 'TotalHospitalized']],
+                                              arcgis.loc[arcgis.Abbreviation == 'CA', ['day', 'TotalICU']]
+                                              )
     # render the HTML file and save it to S3
     rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data, last_day=last_day)
     write_html_to_s3(rendered, "canada.html", "covid-us")
@@ -294,21 +309,30 @@ def canada():
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid-us.s3-website-us-west-2.amazonaws.com/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
 
 
-def canada_to_dict(province, c, d, t):
+def canada_to_dict(province, c, d, t, a, h, i):
     """
     Canadian data comes from several different files that need to be bundled up
     into a dict to be passed to the rendering template.
     This function does that bundling for the data from a single region.
-    :param c: case data for a province or the entire country
-    :param d: death data for a province or the entire country
-    :param t: test results per day data for a province or the entire country
+    :param c: new case data for a province or the entire country
+    :param d: new death data for a province or the entire country
+    :param t: new test results per day data for a province or the entire country
+    :param a: updated active cases for the region
+    :param h: updated hospitalizations for the region
+    :param i: updated ICU patients for the region
     :return:
     """
     c.sort_values(by='day', inplace=True)
     d.sort_values(by='day', inplace=True)
     t.sort_values(by='day', inplace=True)
+    a.sort_values(by='day', inplace=True)
+    h.sort_values(by='day', inplace=True)
+    i.sort_values(by='day', inplace=True)
     s = pd.merge(c, d, how='left', left_on=['day'], right_on=['day'])
     s = pd.merge(s, t, how='left', left_on=['day'], right_on=['day'])
+    s = pd.merge(s, a, how='left', left_on=['day'], right_on=['day'])
+    s = pd.merge(s, h, how='left', left_on=['day'], right_on=['day'])
+    s = pd.merge(s, i, how='left', left_on=['day'], right_on=['day'])
 
     s['ncases7day'] = s.cases.rolling(7).mean()
     s['ndeaths7day'] = s.deaths.rolling(7).mean()
@@ -317,6 +341,9 @@ def canada_to_dict(province, c, d, t):
     s['pf7day'] = s.positiveFraction.rolling(7).mean()
     s['testing'].clip(-1, inplace=True)  # discard negative numbers of new test results
     s['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
+    s['hosp7day'] = s.TotalHospitalized.rolling(7).mean()
+    s['active7day'] = s.TotalActive.rolling(7).mean()
+    s['icu7day'] = s.TotalICU.rolling(7).mean()
 
     prov_pop = {
         'Alberta': 4421876,
