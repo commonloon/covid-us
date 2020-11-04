@@ -73,6 +73,9 @@
     <h2 style="font-family: sans-serif;">
         <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
     </h2>
+    <h2 style="font-family: sans-serif;">
+        <a href="https://resources-covid19canada.hub.arcgis.com/datasets/provincial-daily-totals/geoservice">ARCGIS Source data (for active case counts and hospitalizations)</a> last updated {{ arcgis_last_day }}
+    </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
     <p>Case counts given in graph titles are 7 day moving averages of new cases.</p>
 
@@ -82,6 +85,8 @@
             <td>
                 <select id="select_view" onchange="display_selected()">
                     <option value="cases">New Cases and Deaths</option>
+                    <option value="active">Active Cases</option>
+                    <option value="hospital">In Hospital and ICU</option>
                     <option value="results"># of Test Results and Positive Fraction</option>
                 </select>
             </td>
@@ -109,10 +114,13 @@
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
-            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+                .attr("x", "-45").attr("width", "90").attr("y", "-62").attr("height", "64").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-52").attr("background-color", "white").node();
+            this._cases = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._active = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._deaths = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._hospital = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._icu = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
@@ -122,10 +130,15 @@
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.positiveIncrease) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
+              this._active.textContent = d3.format("d")(d.TotalActive) + " active cases";
               this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
+              var inHospital = isNaN(d.TotalHospitalized) ? "unknown" : d3.format("d")(d.TotalHospitalized);
+              this._hospital.textContent = inHospital + " in hospital";
+              var inIcu = isNaN(d.TotalICU) ? "unknown" : d3.format("d")(d.TotalICU);
+              this._icu.textContent = inIcu + " in ICU";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -133,7 +146,7 @@
           }
         }
 
-        function graph(province, covid, p1, l1, p2, l2, label1, label2, latest_cases, latest_percap) {
+        function graph(province, title, covid, p1, l1, p2, l2, label1, label2) {
             var divname = "div#".concat(province);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
@@ -204,7 +217,6 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = province + ": " + latest_cases + " Cases (" + latest_percap.toFixed(1) + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -293,17 +305,48 @@
             // display the items in the appropriately sorted order
             if (view == "cases") {
                 sort_helper.forEach(
-                    row => graph(row.region, data[row.region],
-                        "cases", "ncases7day", "deaths", "ndeaths7day",
-                        "New Cases", "New Deaths", row.avg_cases, row.avg_per_capita_cases
-                    )
+                    function(row) {
+                        var title = row.region + ": " + Math.round(row.avg_cases);
+                        title += " Cases (" + row.avg_per_capita_cases.toFixed(1) + "/100k pop)";
+                        graph(row.region, title, data[row.region],
+                            "cases", "ncases7day", "deaths", "ndeaths7day",
+                            "New Cases", "New Deaths"
+                        );
+                    }
                 );
             } else if (view == "results") {
                 sort_helper.forEach(
-                    row => graph(row.region, data[row.region],
-                        "testing", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction", row.avg_cases, row.avg_per_capita_cases
-                    )
+                    function(row) {
+                        var title = row.region + ": " + Math.round(row.avg_results);
+                        title += " Tests (" + (100 * row.avg_positive_fraction).toFixed(1) + "% positive)";
+                        graph(row.region, title, data[row.region],
+                            "testing", "nresults7day", "positiveFraction", "pf7day",
+                            "# of new test results", "positive fraction"
+                        )
+                    }
+                );
+            } else if (view == "hospital") {
+                sort_helper.forEach(
+                    function(row) {
+                        var title = row.region + ": " + row.avg_hospitalized.toFixed(1);
+                        title += " in Hospital (" + row.avg_icu.toFixed(1) + " in ICU)";
+                        graph(row.region, title, data[row.region],
+                        "TotalHospitalized", "hosp7day", "TotalICU", "icu7day",
+                        "# in hospital", "# in ICU"
+                        );
+                    }
+
+                );
+            } else if (view == "active") {
+                sort_helper.forEach(
+                    function (row) {
+                        var title = row.region + ": " + Math.round(row.avg_active);
+                        title += " Active Cases (" + Math.round(row.avg_cases) + " New Cases)";
+                        graph(row.region, title, data[row.region],
+                            "TotalActive", "active7day", "cases", "ncases7day",
+                            "# of active cases", "New cases"
+                        );
+                    }
                 );
             }
         }

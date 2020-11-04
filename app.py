@@ -302,7 +302,8 @@ def canada():
                                               arcgis.loc[arcgis.Abbreviation == 'CA', ['day', 'TotalICU']]
                                               )
     # render the HTML file and save it to S3
-    rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data, last_day=last_day)
+    rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data,
+                               last_day=last_day, arcgis_last_day=arcgis_last_day)
     write_html_to_s3(rendered, "canada.html", "covid-us")
 
     # return an HTTP redirect to the static file in S3
