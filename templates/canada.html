@@ -109,7 +109,7 @@
     </table>
     <script>
         class Tooltip {
-          constructor(svg, x, y) {
+          constructor(svg, x, y, field) {
             this.node = svg.append("g")
                 .attr("pointer-events", "none").attr("display", "none")
                 .attr("font-family", "sans-serif")
@@ -120,26 +120,32 @@
             this._cases = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
             this._active = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
             this._deaths = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._hospital = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._icu = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line6 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
+            this.field = field;
           }
           show(d) {
               var node = this.node.node();
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
               this._active.textContent = d3.format("d")(d.TotalActive) + " active cases";
               this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
-              var inHospital = isNaN(d.TotalHospitalized) ? "unknown" : d3.format("d")(d.TotalHospitalized);
-              this._hospital.textContent = inHospital + " in hospital";
-              var inIcu = isNaN(d.TotalICU) ? "unknown" : d3.format("d")(d.TotalICU);
-              this._icu.textContent = inIcu + " in ICU";
+              if (this.field === "testing") {
+                  this._line5.textContent = d.testing + " test results";
+                  this._line6.textContent = Math.round(d.positiveFraction * 100) + "% positive";
+              } else {
+                  var inHospital = isNaN(d.TotalHospitalized) ? "unknown" : d3.format("d")(d.TotalHospitalized);
+                  this._line5.textContent = inHospital + " in hospital";
+                  var inIcu = isNaN(d.TotalICU) ? "unknown" : d3.format("d")(d.TotalICU);
+                  this._line6.textContent = inIcu + " in ICU";
+              }
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -233,7 +239,7 @@
                     return date - a.day > b.day - date ? b : a;
                 }
 
-                const tooltip = new Tooltip(svg, x, y);
+                const tooltip = new Tooltip(svg, x, y, p1);
 
                 // Add scatter plot of new cases
                 svg.append('g')
