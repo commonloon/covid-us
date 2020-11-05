@@ -12,6 +12,7 @@
         provinces.forEach(
             region => sort_helper.push({
                 "region": region,
+                "new_cases": latest(data[region], "cases"),
                 "avg_cases": Math.round(latest(data[region], "ncases7day")),
                 "avg_per_capita_cases": latest(data[region], "perCapCases7day"),
                 "avg_deaths": latest(data[region], "ndeaths7day"),
@@ -373,9 +374,10 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Region </th>
-            <th colspan="9" align="center">Date: {{ last_day }}</th>
+            <th colspan="10" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
+            <th onclick="display_tabular_data('-new_cases')"> new cases </th>
             <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
@@ -406,6 +408,7 @@
                 .data(function(d) {
                     return [
                         d.region,
+                        d.new_cases,
                         d.avg_cases,
                         d.avg_per_capita_cases,
                         d.avg_deaths,

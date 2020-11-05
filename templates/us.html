@@ -14,6 +14,9 @@
         states.forEach(
             region => sort_helper.push({
                 "region": region,
+                "new_deaths": latest(data[region], "deathIncrease"),
+                "avg_deaths": latest(data[region], "ndeaths7day"),
+                "new_cases": latest(data[region], "positiveIncrease"),
                 "avg_cases": latest_case_count(data[region]),
                 "avg_per_capita_cases": latest_per_capita(data[region]),
                 "avg_hospitalized": latest(data[region], "hosp7day"),
@@ -377,11 +380,14 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> State </th>
-            <th colspan="4" align="center">Date: {{ last_day }}</th>
+            <th colspan="7" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
+            <th onclick="display_tabular_data('-new_cases')"> new cases </th>
             <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg</th>
             <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-new_deaths')"> new deaths </th>
+            <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_hospitalized')"> in hospital <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_icu')"> in ICU <br> 7 day avg </th>
         </tr>
@@ -404,7 +410,11 @@
                 .selectAll("td")
                 .data(function(d) {
                     var icu = isNaN(d.avg_icu) ? "" : d.avg_icu;
-                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_hospitalized, icu];})
+                    return [
+                        d.region,
+                        d.new_cases, d.avg_cases, d.avg_per_capita_cases,
+                        d.new_deaths, d.avg_deaths,
+                        d.avg_hospitalized, icu];})
                 .enter()
                 .append("td")
                 .attr("align", "right")

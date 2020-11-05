@@ -15,8 +15,10 @@
         countries.forEach(
             region => sort_helper.push({
                 "region": region,
+                "new_cases": latest(data[region], "cases"),
                 "avg_cases": Math.round(latest(data[region], "ncases7day")),
                 "avg_per_capita_cases": latest(data[region], "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"),
+                "new_deaths": latest(data[region], "deaths"),
                 "avg_deaths": latest(data[region], "ndeaths7day")
         })
         );
@@ -425,11 +427,13 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Country </th>
-            <th colspan="3" align="center">Date: {{ last_day }}</th>
+            <th colspan="5" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
+            <th onclick="display_tabular_data('-new_cases')"> new cases </th>
             <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 14 day avg </th>
+            <th onclick="display_tabular_data('-new_deaths')"> new deaths </th>
             <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
         </tr>
         </thead>
@@ -451,7 +455,7 @@
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return [d.region, d.avg_cases, d.avg_per_capita_cases, d.avg_deaths];})
+                    return [d.region, d.new_cases, d.avg_cases, d.avg_per_capita_cases, d.new_deaths, d.avg_deaths];})
                 .enter()
                 .append("td")
                 .attr("align", "right")
