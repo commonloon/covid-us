@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 import pandas as pd
-from numpy import nanmax
+from numpy import nanmax, inf, nan
 import boto3
 from datetime import datetime
 # import yappi
@@ -64,6 +64,10 @@ def us():
                            'hospitalizedCurrently', 'inIcuCurrently']]
         s.sort_values(by='day', inplace=True)
 
+        # replace inf and NaN values of positiveFraction with the previous valid value
+        s['positiveFraction'].replace(inf, nan, inplace=True)
+        s['positiveFraction'].fillna(method='ffill', inplace=True)
+
         s['ncases7day'] = s.positiveIncrease.rolling(7).mean()
         s['ndeaths7day'] = s.deathIncrease.rolling(7).mean()
         s['nresults7day'] = s.totalTestResultsIncrease.rolling(7).mean()
@@ -87,6 +91,11 @@ def us():
 
     # gather the relevant national data
     us_data = national_df.filter(['day', 'positiveIncrease', 'deathIncrease', 'totalTestResultsIncrease', 'positiveFraction'], axis=1)
+    # replace inf and NaN values of positiveFraction with the previous valid value
+    us_data['positiveFraction'].replace(inf, nan, inplace=True)
+    us_data['positiveFraction'].fillna(method='ffill', inplace=True)
+
+    # calculate the 7 day rolling averages
     us_data['ncases7day'] = us_data.positiveIncrease.rolling(7).mean()
     us_data['ndeaths7day'] = us_data.deathIncrease.rolling(7).mean()
     us_data['nresults7day'] = us_data.totalTestResultsIncrease.rolling(7).mean()
@@ -339,6 +348,9 @@ def canada_to_dict(province, c, d, t, a, h, i):
     s['ndeaths7day'] = s.deaths.rolling(7).mean()
     s['nresults7day'] = s.testing.rolling(7).mean()
     s['positiveFraction'] = s.cases / s.testing
+    # replace inf and NaN values of positiveFraction with the previous valid value
+    s['positiveFraction'].replace(inf, nan, inplace=True)
+    s['positiveFraction'].fillna(method='ffill', inplace=True)
     s['pf7day'] = s.positiveFraction.rolling(7).mean()
     s['testing'].clip(-1, inplace=True)  # discard negative numbers of new test results
     s['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
