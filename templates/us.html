@@ -120,7 +120,7 @@
     </table>
     <script>
         class Tooltip {
-          constructor(svg, x, y) {
+          constructor(svg, x, y, field) {
             this.node = svg.append("g")
                 .attr("pointer-events", "none").attr("display", "none")
                 .attr("font-family", "sans-serif")
@@ -130,25 +130,36 @@
             this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
             this._cases = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
             this._deaths = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._hospital = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._icu = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line6 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
+            this.field = field;
           }
           show(d) {
               var node = this.node.node();
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.positiveIncrease) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
-              this._cases.textContent = d3.format("d")(d.positiveIncrease) + " new cases";
-              this._deaths.textContent = d3.format("d")(d.deathIncrease) + " new deaths";
-              var inHosp = isNaN(d.hospitalizedCurrently) ? "unknown" : d3.format("d")(d.hospitalizedCurrently);
-              this._hospital.textContent = inHosp + " in hospital";
-              var inIcu = isNaN(d.inIcuCurrently) ? "unknown" : d3.format("d")(d.inIcuCurrently);
-              this._icu.textContent = inIcu + " in ICU";
+              if (this.field === "perCapCases") {
+                  this._cases.textContent = d.perCapCases.toFixed(1) + " cases / 100k";
+                  this._deaths.textContent = d.perCapDeaths.toFixed(2) + " deaths / 100k";
+              } else {
+                  this._cases.textContent = d3.format("d")(d.positiveIncrease) + " new cases";
+                  this._deaths.textContent = d3.format("d")(d.deathIncrease) + " new deaths";
+              }
+              if (this.field === "totalTestResultsIncrease") {
+                  this._line5.textContent = d.totalTestResultsIncrease + " test results";
+                  this._line6.textContent = Math.round(d.positiveFraction * 100) + "% positive";
+              } else {
+                  var inHosp = isNaN(d.hospitalizedCurrently) ? "unknown" : d3.format("d")(d.hospitalizedCurrently);
+                  this._line5.textContent = inHosp + " in hospital";
+                  var inIcu = isNaN(d.inIcuCurrently) ? "unknown" : d3.format("d")(d.inIcuCurrently);
+                  this._line6.textContent = inIcu + " in ICU";
+              }
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -156,7 +167,7 @@
           }
         }
 
-        function graph(state, covid, p1, l1, p2, l2, label1, label2, latest_cases, latest_percap, max1=null, max2=null) {
+        function graph(state, title, covid, p1, l1, p2, l2, label1, label2, max1=null, max2=null) {
             var divname = "div#".concat(state);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
@@ -234,7 +245,6 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = state + ": " + latest_cases + " New Cases (" + latest_percap.toFixed(1) + "/100k pop)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -250,7 +260,7 @@
                     const a = data[i - 1], b = data[i];
                     return date - a.day > b.day - date ? b : a;
                 }
-                const tooltip = new Tooltip(svg, x, y);
+                const tooltip = new Tooltip(svg, x, y, p1);
                 div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
                     .on("mouseleave", event => tooltip.hide());
 
@@ -326,35 +336,48 @@
 
             if (view == "cases") {
                 sort_helper.forEach(
-                    row => graph(row["region"], data[row["region"]],
-                        "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
-                        "New Cases", "New Deaths", row["avg_cases"], row["avg_per_capita_cases"]
-                    )
+                    function(row) {
+                        var title = row.region + ": " + Math.round(row["avg_cases"]);
+                        title += " New Cases (" + row["avg_per_capita_cases"].toFixed(1) + "/100k pop)";
+                        graph(row["region"], title, data[row["region"]],
+                            "positiveIncrease", "ncases7day", "deathIncrease", "ndeaths7day",
+                            "New Cases", "New Deaths"
+                        )
+                    }
                 );
             } else if (view == "percap") {
                 sort_helper.forEach(
-                    row => graph(row["region"], data[row["region"]],
-                        "perCapCases", "perCapCases7day", "perCapDeaths", "perCapDeaths7day",
-                        "New Cases/100k pop", "New Deaths/100k pop",
-                        row["avg_cases"], row["avg_per_capita_cases"],
-                        maxPerCapCases, maxPerCapDeaths
-                    )
+                    function(row) {
+                        var title = row.region + ": " + Math.round(row["avg_cases"]);
+                        title += " New Cases (" + row["avg_per_capita_cases"].toFixed(1) + "/100k pop)";
+                        graph(row["region"], title, data[row["region"]],
+                            "perCapCases", "perCapCases7day", "perCapDeaths", "perCapDeaths7day",
+                            "New Cases/100k pop", "New Deaths/100k pop",
+                            maxPerCapCases, maxPerCapDeaths
+                        )
+                    }
                 );
             } else if (view == "hospital") {
                 sort_helper.forEach(
-                    row => graph(row["region"], data[row["region"]],
-                        "hospitalizedCurrently", "hosp7day", "inIcuCurrently", "icu7day",
-                        "In Hospital", "In ICU",
-                        row["avg_cases"], row["avg_per_capita_cases"]
-                    )
+                    function (row) {
+                        var title = row.region + ": " + row["avg_hospitalized"].toFixed(1);
+                        title += " in Hospital (" + row["avg_icu"].toFixed(1) + " in ICU)";
+                        graph(row["region"], title,  data[row["region"]],
+                            "hospitalizedCurrently", "hosp7day", "inIcuCurrently", "icu7day",
+                            "In Hospital", "In ICU",
+                        )
+                    }
                 );
             } else if (view == "results") {
                 sort_helper.forEach(
-                    row => graph(row["region"], data[row["region"]],
-                        "totalTestResultsIncrease", "nresults7day", "positiveFraction", "pf7day",
-                        "# of new test results", "positive fraction",
-                        row["avg_cases"], row["avg_per_capita_cases"]
-                    )
+                    function (row) {
+                        var title = row.region + ": " + row["avg_results"];
+                        title += " New Results (" + (100 * row["avg_positive_fraction"]).toFixed(1) + "% positive)";
+                        graph(row["region"], title, data[row["region"]],
+                            "totalTestResultsIncrease", "nresults7day", "positiveFraction", "pf7day",
+                            "# of new test results", "positive fraction",
+                        )
+                    }
                 );
             }
         }

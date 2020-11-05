@@ -72,9 +72,9 @@ def us():
         s['ndeaths7day'] = s.deathIncrease.rolling(7).mean()
         s['nresults7day'] = s.totalTestResultsIncrease.rolling(7).mean()
         s['pf7day'] = s.positiveFraction.rolling(7).mean()
-        s['perCapCases'] = s.positiveIncrease * 100000 / states_pop[state]
+        s['perCapCases'] = s.positiveIncrease * 100000.0 / states_pop[state]
         s['perCapCases7day'] = s.perCapCases.rolling(7).mean()
-        s['perCapDeaths'] = s.deathIncrease * 100000 / states_pop[state]
+        s['perCapDeaths'] = s.deathIncrease * 100000.0 / states_pop[state]
         s['perCapDeaths7day'] = s.perCapDeaths.rolling(7).mean()
         s['hosp7day'] = s.hospitalizedCurrently.rolling(7).mean()
         s['icu7day'] = s.inIcuCurrently.rolling(7).mean()
@@ -100,9 +100,9 @@ def us():
     us_data['ndeaths7day'] = us_data.deathIncrease.rolling(7).mean()
     us_data['nresults7day'] = us_data.totalTestResultsIncrease.rolling(7).mean()
     us_data['pf7day'] = us_data.positiveFraction.rolling(7).mean()
-    us_data['perCapCases'] = us_data.positiveIncrease * 100000 / states_pop['USA']
+    us_data['perCapCases'] = us_data.positiveIncrease * 100000.0 / states_pop['USA']
     us_data['perCapCases7day'] = us_data.perCapCases.rolling(7).mean()
-    us_data['perCapDeaths'] = us_data.deathIncrease * 100000 / states_pop['USA']
+    us_data['perCapDeaths'] = us_data.deathIncrease * 100000.0 / states_pop['USA']
     us_data['perCapDeaths7day'] = us_data.perCapDeaths.rolling(7).mean()
     us_data['day'] = us_data['day'].dt.strftime('%Y-%m-%d')
     data['USA'] = us_data.to_dict(orient='records')
