@@ -455,7 +455,7 @@
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return [d.region, d.new_cases, d.avg_cases, d.avg_per_capita_cases, d.new_deathsp, d.avg_deaths];})
+                    return [d.region, d.new_cases, d.avg_cases, d.avg_per_capita_cases, d.new_deaths, d.avg_deaths];})
                 .enter()
                 .append("td")
                 .attr("align", "right")
