@@ -460,14 +460,13 @@
                 .append("td")
                 .attr("align", "right")
                 .text(function(d) {
-                if (typeof d === 'string' || d instanceof String || Number.isInteger(d)) {
-                    // display strings or integers without change
-                    return d;
-                } else {
-                    // cut off floats at the first decimal place
-                    return d.toFixed(1);
-                }
-            });
+                    if (Number.isFinite(d) && !Number.isInteger(d)) {
+                        if (d < 1) {return d.toFixed(2);}
+                        return d.toFixed(1);
+                    } else {
+                        return d;
+                    }
+                });
         }
     </script>
 
