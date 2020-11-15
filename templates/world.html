@@ -19,7 +19,9 @@
                 "avg_cases": Math.round(latest(data[region], "ncases7day")),
                 "avg_per_capita_cases": latest(data[region], "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"),
                 "new_deaths": latest(data[region], "deaths"),
-                "avg_deaths": latest(data[region], "ndeaths7day")
+                "avg_deaths": latest(data[region], "ndeaths7day"),
+                "percap_deaths": latest(data[region], "percapDeaths"),
+                "avg_per_capita_deaths": latest(data[region], "percapDeaths7day")
         })
         );
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
@@ -91,7 +93,7 @@
             <select id="select_sort" onchange="display_selected()">
                 <option value="region">Alphabetical</option>
                 <option value="-avg_cases">{{ last_day }} new case count</option>
-                <option value="-avg_per_capita_cases">{{ last_day }} per capita new case count</option>
+                <option value="-avg_per_capita_cases" selected>{{ last_day }} per capita new case count</option>
             </select>
         </td></tr>
     </table>
@@ -103,29 +105,34 @@
     </table>
     <script>
         class Tooltip {
-          constructor(svg, x, y) {
+          constructor(svg, x, y, field) {
             this.node = svg.append("g")
                 .attr("pointer-events", "none").attr("display", "none")
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
-            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+                .attr("x", "-45").attr("width", "90").attr("y", "-52").attr("height", "54").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._cases = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._deaths = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._line4 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
+            this.field = field;
           }
           show(d) {
               var node = this.node.node();
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
               this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
+              this._line4.textContent = d3.format(".2f")(d["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]) + " avg cases/100k";
+              this._line5.textContent = d3.format(".2f")(d["ndeaths7day"]) + " deaths/100k";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -218,7 +225,7 @@
                     const a = data[i - 1], b = data[i];
                     return date - a.day > b.day - date ? b : a;
                 }
-                const tooltip = new Tooltip(svg, x, y);
+                const tooltip = new Tooltip(svg, x, y, p1);
                 div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
                     .on("mouseleave", event => tooltip.hide());
 
@@ -388,11 +395,10 @@
                 );
             } else if (view == "perCapita") {
                 sort_helper.forEach(
-                    row => fixed_y(row.region, data[row.region],
-                        "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
-                        max_per_capita,
-                        "cases per 100k pop",
-                        row.avg_cases, row.avg_per_capita_cases
+                    row => graph(row.region, data[row.region],
+                        "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000", "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
+                        "percapDeaths", "percapDeaths7day",
+                        "New Cases/100k pop", "New Deaths/100k pop", row.avg_cases, row.avg_per_capita_cases
                     )
                 );
             } else if (view == "results") {
@@ -427,7 +433,7 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Country </th>
-            <th colspan="5" align="center">Date: {{ last_day }}</th>
+            <th colspan="6" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
             <th onclick="display_tabular_data('-new_cases')"> new cases </th>
@@ -435,6 +441,7 @@
             <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 14 day avg </th>
             <th onclick="display_tabular_data('-new_deaths')"> new deaths </th>
             <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-avg_per_capita_deaths')"> new deaths / 100k pop <br> 7 day avg </th>
         </tr>
         </thead>
         <tbody id="ntb"></tbody>
@@ -455,7 +462,8 @@
             var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
                 .selectAll("td")
                 .data(function(d) {
-                    return [d.region, d.new_cases, d.avg_cases, d.avg_per_capita_cases, d.new_deaths, d.avg_deaths];})
+                    return [d.region, d.new_cases, d.avg_cases, d.avg_per_capita_cases,
+                            d.new_deaths, d.avg_deaths, d.avg_per_capita_deaths];})
                 .enter()
                 .append("td")
                 .attr("align", "right")

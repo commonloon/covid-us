@@ -129,6 +129,7 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
     """
     data = {}
     for country in countries:
+        pop = df.loc[df.countriesAndTerritories == country, 'popData2019'].iloc[0]
         s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths',
                                                            'Cumulative_number_for_14_days_of_COVID-19_cases_per_100000']]
         s.sort_values(by='day', inplace=True)
@@ -140,6 +141,8 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
         s['ndeaths7day'] = s.deaths.rolling(7).mean()
         s['nresults7day'] = 0
         s['pf7day'] = 0
+        s['percapDeaths'] = s.deaths * 100000.0 / pop  # per 100k population
+        s['percapDeaths7day'] = s.ndeaths7day * 100000.0 / pop
 
         data[country] = s.to_dict(orient='records')
     # render the HTML file and save it to S3
@@ -187,7 +190,7 @@ def europe():
     df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
     df['day'] = df['day'].dt.strftime('%Y-%m-%d')
     last_day = max(df.day)
-    max_per_capita = 50 # pick an arbitrary number that should work as of Oct 14, 2020
+    max_per_capita = 100 # pick an arbitrary number that should work as of Nov 15, 2020
 
     # countries = sorted(df.countriesAndTerritories.unique())
     plot_ecdc_totals(df, last_day,
