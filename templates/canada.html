@@ -7,6 +7,7 @@
         const chart_height = 250;
         const chart_width  = 1024;
         const provinces = {{ provinces|tojson }};
+        const icu_beds = {{ icu_beds|tojson }}
         var data = {{ data|tojson }};
         var sort_helper = [];  // start off sorted by provinces
         provinces.forEach(
@@ -21,7 +22,9 @@
                 "avg_positive_fraction": latest(data[region], "pf7day"),
                 "avg_active": latest(data[region], "active7day"),
                 "avg_hospitalized": latest(data[region], "hosp7day"),
-                "avg_icu": latest(data[region], "icu7day")
+                "avg_icu": latest(data[region], "icu7day"),
+                "icu": latest(data[region], "TotalICU"),
+                "icu_beds": icu_beds[region]
             })
         );
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
@@ -380,7 +383,7 @@
         <thead>
         <tr>
             <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Region </th>
-            <th colspan="10" align="center">Date: {{ last_day }}</th>
+            <th colspan="12" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
             <th onclick="display_tabular_data('-new_cases')"> new cases </th>
@@ -393,6 +396,8 @@
             <th onclick="display_tabular_data('-avg_active')"> active cases <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_hospitalized')"> in hospital <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_icu')"> in ICU <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-icu')"> in ICU </th>
+            <th onclick="display_tabular_data('-icu_beds')"> ICU beds <br> ventilator capable </th>
         </tr>
         </thead>
         <tbody id="ntb"></tbody>
@@ -423,7 +428,9 @@
                         d.avg_positive_fraction,
                         d.avg_active,
                         d.avg_hospitalized,
-                        d.avg_icu
+                        d.avg_icu,
+                        d.icu,
+                        d.icu_beds
                     ];})
                 .enter()
                 .append("td")

@@ -132,7 +132,7 @@
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
               this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
               this._line4.textContent = d3.format(".2f")(d["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]) + " avg cases/100k";
-              this._line5.textContent = d3.format(".2f")(d["ndeaths7day"]) + " deaths/100k";
+              this._line5.textContent = d3.format(".2f")(d["percapDeaths7day"]) + " deaths/100k";
           }
           hide() {
             this.node.node().setAttribute("display", "none");

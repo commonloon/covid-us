@@ -3,6 +3,7 @@ import pandas as pd
 from numpy import nanmax, inf, nan
 import boto3
 from datetime import datetime
+import time
 # import yappi
 # import atexit
 #
@@ -143,8 +144,8 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
         s['pf7day'] = 0
         s['percapDeaths'] = s.deaths * 100000.0 / pop  # per 100k population
         s['percapDeaths7day'] = s.ndeaths7day * 100000.0 / pop
-
         data[country] = s.to_dict(orient='records')
+
     # render the HTML file and save it to S3
     rendered = render_template("world.html",
                                countries=countries,
@@ -271,6 +272,9 @@ def canada():
     last_day = max(cases.day).strftime("%Y-%m-%d")
     arcgis_last_day = max(arcgis.day).strftime("%Y-%m-%d")
 
+    # get ICU capacity
+    icu_beds = {row[1]: int(row[3].replace(',', '')) for _, row in pd.read_csv("static/canada_icu_beds.csv").iterrows()}
+
     # Get list of provinces.
     # Skip 'Repatriated' as that data was never complete enough to be useful
     provinces = sorted(cases.province.unique())
@@ -315,7 +319,7 @@ def canada():
                                               )
     # render the HTML file and save it to S3
     rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data,
-                               last_day=last_day, arcgis_last_day=arcgis_last_day)
+                               last_day=last_day, arcgis_last_day=arcgis_last_day, icu_beds=icu_beds)
     write_html_to_s3(rendered, "canada.html", "covid.pacificloon.ca")
 
     # return an HTTP redirect to the static file in S3
@@ -385,6 +389,16 @@ def canada_to_dict(province, c, d, t, a, h, i):
     s['day'] = s['day'].dt.strftime('%Y-%m-%d')
 
     return s.to_dict(orient='records')
+
+@app.route('/bc')
+@app.route('/dev/bc')
+def bc_map():
+    # render the HTML file and save it to S3
+    rendered = render_template("bc.html")
+    write_html_to_s3(rendered, "bc.html", "covid.pacificloon.ca")
+
+    # return an HTTP redirect to the static file in S3
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/bc.html\"></head><body><p>Updated bc.html</p></body></html>"
 
 def write_html_to_s3(content, filename, bucket):
     """ Write an html file to an S3 bucket"""

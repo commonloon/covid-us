@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Canada Covid Charts</title>
+
+    <script>
+        const map_height = 1024;
+        const map_width = 1024;
+
+    </script>
+    <link rel="stylesheet" href="static/covid.css">
+
+</head>
+
+<body>
+    <h1>BC Health Regions</h1>
+    <p>See also:</p>
+    <span>
+    <ul id="buttons">
+    <li><a href="/africa.html">Africa</a></li>
+    <li><a href="/asia.html">Asia</a></li>
+    <li><a href="/americas.html">Americas</a></li>
+    <li><a href="/canada.html">Canada</a></li>
+    <li><a href="/europe.html">Europe</a></li>
+    <li><a href="/us.html">US and states</a></li>
+    <li><a href="/worldwide.html">Worldwide</a></li>
+    </ul>
+    </span>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <h2 style="font-family: sans-serif;">
+        <a href="https://github.com/ishaberry/Covid19Canada/tree/master/timeseries_prov">Source data</a> last updated {{ last_day }}
+    </h2>
+    <h2 style="font-family: sans-serif;">
+        <a href="https://resources-covid19canada.hub.arcgis.com/datasets/provincial-daily-totals/geoservice">ARCGIS Source data (for active case counts and hospitalizations)</a> last updated {{ arcgis_last_day }}
+    </h2>
+
+    <svg width="1024px" height="1024px">
+        <g id="bc_hr_map"></g>
+    </svg>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+<script>
+    const hr_boundaries_url = "http://covid.pacificloon.ca/static/BC_Health_Authority_Boundaries.geojson";
+    d3.json(hr_boundaries_url).then(
+        function(hr_boundaries) {
+            var hr_projection = d3.geoAzimuthalEqualArea().fitExtent([[20,20], [map_height, map_width]], hr_boundaries);
+            hr_projection
+                .translate([480, 250])
+                .center([53.72, -127.64])
+                .rotate([127.64, 53.72, 0]);
+            var geoGenerator = d3.geoPath().projection(hr_projection);
+            var map = d3.select("#bc_hr_map").selectAll("path").data(hr_boundaries.features);
+
+            map.enter()
+                .append("path")
+                .merge(map)
+                .attr('d', geoGenerator)
+            }
+    );
+</script>
+</body>
+</html>
