@@ -82,6 +82,9 @@
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
     <p>Values given in graph titles are 7 day moving averages.</p>
+    <h2>Source for the app that generates these files is found in github at
+        <a href="https://github.com/commonloon/covid-us">commonloon/covid-us</a>
+    </h2>
 
     <table>
         <tr>
@@ -436,7 +439,7 @@
                 .append("td")
                 .attr("align", "right")
                 .text(function(d) {
-                if (typeof d === 'string' || d instanceof String || Number.isInteger(d)) {
+                if (typeof d === 'string' || d instanceof String || Number.isInteger(d) || !isFinite(d)) {
                     // display strings or integers without change
                     return d;
                 } else {
