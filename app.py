@@ -3,6 +3,7 @@ import pandas as pd
 from numpy import nanmax, inf, nan
 import boto3
 from datetime import datetime
+
 import time
 # import yappi
 # import atexit
@@ -90,8 +91,12 @@ def us():
 
         data[state] = s.to_dict(orient='records')
 
+    # need to sum states to get national values for inIcuCurrently and hospitalizedIncrease
+    tmp = states_df[['day', 'hospitalizedCurrently', 'inIcuCurrently']].groupby('day').sum()
     # gather the relevant national data
     us_data = national_df.filter(['day', 'positiveIncrease', 'deathIncrease', 'totalTestResultsIncrease', 'positiveFraction'], axis=1)
+    # merge in the sums for inIcuCurrently and hospitalizedIncrease
+    us_data = pd.merge(us_data, tmp, how='left', left_on=['day'], right_on=['day'])
     # replace inf and NaN values of positiveFraction with the previous valid value
     us_data['positiveFraction'].replace(inf, nan, inplace=True)
     us_data['positiveFraction'].fillna(method='ffill', inplace=True)
@@ -105,6 +110,8 @@ def us():
     us_data['perCapCases7day'] = us_data.perCapCases.rolling(7).mean()
     us_data['perCapDeaths'] = us_data.deathIncrease * 100000.0 / states_pop['USA']
     us_data['perCapDeaths7day'] = us_data.perCapDeaths.rolling(7).mean()
+    us_data['hosp7day'] = us_data.hospitalizedCurrently.rolling(7).mean()
+    us_data['icu7day'] = us_data.inIcuCurrently.rolling(7).mean()
     us_data['day'] = us_data['day'].dt.strftime('%Y-%m-%d')
     data['USA'] = us_data.to_dict(orient='records')
     states.append('USA')
@@ -214,9 +221,9 @@ def europe():
                      'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
     asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
                    'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
-                   'Israel', 'Jordan', 'Saudi_Arabia', 'Yemen'])
+                   'Israel', 'Jordan', 'Saudi_Arabia', 'South_Korea'])
     africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South_Africa',
-                     'United_Republic_of_Tanzania', 'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria'])
+                    'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
     americas = sorted(['Canada', 'United_States_of_America', 'Mexico', 'Brazil', 'Chile', 'Argentina',
                        'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
                        'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
@@ -393,8 +400,51 @@ def canada_to_dict(province, c, d, t, a, h, i):
 @app.route('/bc')
 @app.route('/dev/bc')
 def bc_map():
+    # get all case data for BC
+    bc_data = pd.read_csv('http://www.bccdc.ca/Health-Info-Site/Documents/BCCDC_COVID19_Dashboard_Case_Details.csv')
+
+    # Aggregate the case data by health region
+    bc = bc_data.groupby('Reported_Date').size().reset_index(name='counts')
+    bc_sexed = bc_data.groupby(['Reported_Date', 'Sex']).size().reset_index(name='counts')
+    bc_aged = bc_data.groupby(['Reported_Date', 'Age_Group']).size().reset_index(name='counts')
+    bc_aged_sexed = bc_data.groupby(['Reported_Date', 'Sex', 'Age_Group']).size().reset_index(name='counts')
+    bc_ha = bc_data.groupby(['Reported_Date', 'HA']).size().reset_index(name='counts')
+    bc_ha_sexed = bc_data.groupby(['Reported_Date', 'HA', 'Sex']).size().reset_index(name='counts')
+    bc_ha_aged = bc_data.groupby(['Reported_Date', 'HA', 'Age_Group']).size().reset_index(name='counts')
+    bc_ha_aged_sexed = bc_data.groupby(['Reported_Date', 'HA', 'Sex', 'Age_Group']).size().reset_index(name='counts')
+
+    # age bins for aged data
+    age_bins = ['<10', '10-19', '20-29', '30-39', '40-49', '50-59', '60-69', '70-79', '80-89', '90+']
+
+    # pivot data so each column is a series of counts, substituting 0 for NaN since no report means a count of 0.
+    # bc = bc # no need to pivot this one as it's already a single series
+    bc_sexed = bc_sexed.pivot(index=['Reported_Date'], columns=['Sex'], values='counts').fillna(0)
+    bc_aged = bc_aged.pivot(index='Reported_Date', columns=['Age_Group'], values="counts").fillna(0)
+    bc_aged_sexed = bc_aged_sexed.pivot(index='Reported_Date', columns=['Sex', 'Age_Group'], values="counts").fillna(0)
+    bc_ha = bc_ha.pivot(index='Reported_Date', columns=['HA'], values='counts').fillna(0)
+    bc_ha_aged = bc_ha_aged.pivot(index='Reported_Date', columns=['HA', 'Age_Group'], values="counts").fillna(0)
+    bc_ha_sexed = bc_ha_sexed.pivot(index='Reported_Date', columns=['HA', 'Sex'], values="counts").fillna(0)
+    bc_ha_aged_sexed = bc_ha_aged_sexed.pivot(index='Reported_Date', columns=['HA', 'Sex', 'Age_Group'], values="counts").fillna(0)
+
+    # maximum counts for each of the data frames; used to set the y scale when plotting
+    max_counts = {
+        'bc': max(bc.counts),
+        'bc_sexed': bc_sexed.max().max(),
+        'bc_aged' : bc_aged.max().max(),
+        'bc_aged_sexed': bc_aged_sexed.max().max(),
+        'bc_ha' : bc_ha.max().max(),
+        'bc_ha_aged': bc_ha_aged.max().max(),
+        'bc_ha_sexed': bc_ha_sexed.max().max(),
+        'bc_ha_aged_sexed': bc_ha_aged_sexed.max().max()
+    }
+
+    bc = bc.to_dict(orient='records')
+    bc_aged = bc_aged.to_dict(orient='records')
+    bc_ha = bc_ha.to_dict(orient='records')
+    bc_ha_aged = bc_ha_aged.to_dict(orient='records')
+
     # render the HTML file and save it to S3
-    rendered = render_template("bc.html")
+    rendered = render_template("bc.html", age_bins= age_bins, max_counts=max_counts, bc_aged=bc_aged, bc_ha=bc_ha)
     write_html_to_s3(rendered, "bc.html", "covid.pacificloon.ca")
 
     # return an HTTP redirect to the static file in S3

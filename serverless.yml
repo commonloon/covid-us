@@ -36,6 +36,7 @@ provider:
   name: aws
   runtime: python3.8
   timeout: 20
+  region: us-west-2
 #  memorySize: 512
 
 # you can overwrite defaults here

@@ -7,6 +7,22 @@
     <script>
         const map_height = 1500;
         const map_width = 1500;
+        let age_bins = {{ age_bins|tojson }};
+        let max_counts = {{ max_counts|tojson }};
+        let bc_aged = {{ bc_aged|tojson }};
+        let bc_ha = {{ bc_ha|tojson }};
+
+        {#  convert dates to javascript dates #}
+        {#
+        bc_aged.forEach(
+            function (item) {
+                item = item.map(function (row, idx, arr) {
+                    row.Reported_Date = Date.parse(row.Reported_Date);
+                    return row;
+                });
+            }
+        );
+        #}
 
     </script>
     <style>
@@ -17,14 +33,15 @@ svg {
 svg polyline,
 svg line,
 svg path {
-  fill: none;
-  stroke: #000;
+  pointer-events: all;
   stroke-linecap: round;
   stroke-linejoin: round;
   transition: 0.2s;
 }
     </style>
     <link rel="stylesheet" href="static/covid.css">
+    <! blank favicon />
+    <link href="data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQEAYAAABPYyMiAAAABmJLR0T///////8JWPfcAAAACXBIWXMAAABIAAAASABGyWs+AAAAF0lEQVRIx2NgGAWjYBSMglEwCkbBSAcACBAAAeaR9cIAAAAASUVORK5CYII=" rel="icon" type="image/x-icon" />
 
 </head>
 
@@ -55,30 +72,163 @@ svg path {
         <a href="https://github.com/commonloon/covid-us">commonloon/covid-us</a>
     </h2>
 
-    <svg width="1024", height="1024">
+    <svg width="1024" height="1024">
         <g id="bc_hr_map"></g>
     </svg>
 
+    <div id="bc_age_over_time">
+        <button id="bc_aot_button">Play</button>
+    </div>
+
 <script src="https://d3js.org/d3.v6.min.js"></script>
 <script>
+    {#  script to display a map of the BC Health Regions #}
+
     const hr_boundaries_url = "http://covid.pacificloon.ca/static/BC_Health_Authority_Boundaries.geojson";
     d3.json(hr_boundaries_url).then(
         function(hr_boundaries) {
-            var hr_projection = d3.geoAzimuthalEqualArea().fitExtent([[20,20], [map_height, map_width]], hr_boundaries);
+            let hr_projection = d3.geoAzimuthalEqualArea().fitExtent([[20,20], [map_height, map_width]], hr_boundaries);
             hr_projection.rotate([127,-53,0]).translate([400,500]);
 
-            var geoGenerator = d3.geoPath().projection(hr_projection);
-            var map = d3.select("#bc_hr_map").selectAll("path").data(hr_boundaries.features);
+            let geoGenerator = d3.geoPath().projection(hr_projection);
+            let map = d3.select("#bc_hr_map").selectAll("path").data(hr_boundaries.features);
 
             map.enter()
+                .append('a')
+                .attr('href', 'http://questionablecontent.net')
                 .append("path")
-                .merge(map)
-                .attr('fill', 'blue')
+                .attr('id', function(d, i) {
+                    return i;
+                })
+                .attr('fill', 'steelblue')
+                .attr('fill-opacity', 0.5)
                 .attr('stroke', 'black')
                 .attr('stroke-width', '1')
-                .attr('d', geoGenerator);
+                .attr('d', geoGenerator)
+                .merge(map)
+            ;
         }
     );
+</script>
+<script>
+    {# animated chart of how covid age distribution changed over time #}
+
+{#  stuff related to setting dates for an animation; not used for now
+    var formatDateIntoYear = d3.timeFormat("%Y");
+    var formatDate = d3.timeFormat("%b %Y");
+    var parseDate = d3.timeParse("%m/%d/%y");
+
+    var startDate = new Date("2004-11-01"),
+        endDate = new Date("2017-04-01");
+
+    var margin = {top:50, right:50, bottom:0, left:50},
+        width = 960 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var svg = d3.select("#vis")
+        .append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom);#}
+
+    function multi_timeseries_plot(div_id, title, data, xaxis, ymax, ylabel, plot_columns) {
+        {#
+        div_id - id of HTML element in which to display the plot (usually a div)
+        title  - plot title
+        data   - set of records containing the data to plot
+        xaxis  - name of the time series to use as the x axis
+        ymax   - max value to display on the y axis
+        plot_columns - names of series to display
+     #}
+        var chart_width = 1280;
+        var chart_height = 1024;
+        var divname = "div#".concat(div_id);
+        var firstcolor = "#a94352";
+        var secondcolor = "#69b3a2";
+
+        // label the div
+        d3.select(divname).text(div_id).attr("text-anchor", "center");
+
+        // set the dimensions and margins of the graph
+        var margin = {top: 10, right: 30, bottom: 30, left: 60},
+            width = chart_width - margin.left - margin.right,
+            height = chart_height - margin.top - margin.bottom;
+
+        // insert an SVG object into the div to hold our plot
+        var svg = d3.select(divname)
+            .append("svg")
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+            .append("g")
+            .attr("transform",
+                "translate(" + margin.left + "," + margin.top + ")");
+
+        {#            // add tool tips
+        div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
+            .on("mouseleave", event => tooltip.hide());#}
+
+        // Add X axis (range of dates in the data)
+        var x = d3.scaleTime()
+            .domain([0, ymax])
+            .range([0, width]);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .call(d3.axisBottom(x));
+
+        // Add Y axis
+        var y = d3.scaleLinear()
+            .domain([0, ymax])
+            .range([height, 0]);
+        svg.append("g")
+            .call(d3.axisLeft(y))
+            .style("fill", firstcolor);
+
+        // Add label for the y axis
+        svg.append("text")
+            .attr("text-anchor", "end")
+            .style("font-family", "sans-serif")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 20)
+            .attr("x", 0)
+            .text(ylabel)
+            .style("fill", firstcolor);
+
+        // Add chart title
+        svg.append("text")
+            .attr("text-anchor", "center")
+            .attr("y", margin.top)
+            .attr("x", 3 * width / 8)
+            .text(title)
+            .style("font-family", "sans-serif")
+            .style("fill", "black");
+
+        function bisect(data, date) {
+            i = d3.bisector(d => d[xaxis]).left(data, Date.parse(date));
+            i = data.length > i ? i : data.length - 1;
+            const a = data[i - 1], b = data[i];
+            return date - a[xaxis] > b[xaxis] - date ? b : a;
+        }
+
+        {#const tooltip = new Tooltip(svg, x, y, p1);#}
+
+        // add a line for each time series
+        plot_columns.forEach(c => {
+            svg.append("path")
+                .datum(data)
+                .attr("fill", "none")
+                .attr("stroke", firstcolor)
+                .attr("stroke-width", 1.5)
+                .attr("d", d3.line()
+                    .defined(d => !isNaN(d[c]))
+                    .x(d => x(d[xaxis]))
+                    .y(d => y(d[c]))
+                );
+        });
+
+
+    }
+    multi_timeseries_plot("bc_age_over_time", "bc_aged", bc_aged, "Reported_Date",
+        max_counts['bc_aged'], 'New Cases', age_bins);
+
 </script>
 </body>
 </html>
