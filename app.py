@@ -221,7 +221,7 @@ def europe():
                      'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
     asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
                    'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
-                   'Israel', 'Jordan', 'Saudi_Arabia', 'South_Korea'])
+                   'Israel', 'Jordan', 'Saudi_Arabia', 'South_Korea', 'Philippines', 'Singapore'])
     africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South_Africa',
                     'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
     americas = sorted(['Canada', 'United_States_of_America', 'Mexico', 'Brazil', 'Chile', 'Argentina',
@@ -438,10 +438,10 @@ def bc_map():
         'bc_ha_aged_sexed': bc_ha_aged_sexed.max().max()
     }
 
-    bc = bc.to_dict(orient='records')
-    bc_aged = bc_aged.to_dict(orient='records')
-    bc_ha = bc_ha.to_dict(orient='records')
-    bc_ha_aged = bc_ha_aged.to_dict(orient='records')
+    bc = bc.to_csv()
+    bc_aged = bc_aged.to_csv()
+    bc_ha = bc_ha.to_csv()
+    bc_ha_aged = bc_ha_aged.to_csv()
 
     # render the HTML file and save it to S3
     rendered = render_template("bc.html", age_bins= age_bins, max_counts=max_counts, bc_aged=bc_aged, bc_ha=bc_ha)
