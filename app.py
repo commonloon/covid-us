@@ -194,7 +194,8 @@ def europe():
 
     :return:
     """
-    df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv/data.csv')
+    #df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv/data.csv')
+    df = pd.read_csv('static/world_to_dec_14.csv')
     df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
     df['day'] = df['day'].dt.strftime('%Y-%m-%d')
     last_day = max(df.day)

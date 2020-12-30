@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <title>British Columbia Covid Map</title>
 
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v2.min.js"></script>
     <script>
         const map_height = 1500;
         const map_width = 1500;
         let age_bins = {{ age_bins|tojson }};
         let max_counts = {{ max_counts|tojson }};
-        let bc_aged = {{ bc_aged|tojson }};
+        let bc_aged = d3.csvParse({{ bc_aged|tojson }});
         let bc_ha = {{ bc_ha|tojson }};
+
+        let age_colors = d3.scaleOrdinal().domain(age_bins).range(d3.schemeSet1);
 
         {#  convert dates to javascript dates #}
         {#
@@ -130,15 +134,15 @@ svg path {
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom);#}
 
-    function multi_timeseries_plot(div_id, title, data, xaxis, ymax, ylabel, plot_columns) {
+    function multi_timeseries_plot(div_id, title, data, ymax, ylabel, plot_columns) {
         {#
         div_id - id of HTML element in which to display the plot (usually a div)
         title  - plot title
         data   - set of records containing the data to plot
-        xaxis  - name of the time series to use as the x axis
         ymax   - max value to display on the y axis
         plot_columns - names of series to display
      #}
+        var dref = data; // make data accessible inside the forEach below
         var chart_width = 1280;
         var chart_height = 1024;
         var divname = "div#".concat(div_id);
@@ -167,19 +171,19 @@ svg path {
             .on("mouseleave", event => tooltip.hide());#}
 
         // Add X axis (range of dates in the data)
-        var x = d3.scaleTime()
-            .domain([0, ymax])
+        var xScale = d3.scaleTime()
+            .domain([new Date(data[0].Reported_Date), new Date(data[data.length-1].Reported_Date)])
             .range([0, width]);
         svg.append("g")
             .attr("transform", "translate(0," + height + ")")
-            .call(d3.axisBottom(x));
+            .call(d3.axisBottom(xScale));
 
         // Add Y axis
-        var y = d3.scaleLinear()
+        var yScale = d3.scaleLinear()
             .domain([0, ymax])
             .range([height, 0]);
         svg.append("g")
-            .call(d3.axisLeft(y))
+            .call(d3.axisLeft(yScale))
             .style("fill", firstcolor);
 
         // Add label for the y axis
@@ -201,17 +205,18 @@ svg path {
             .style("font-family", "sans-serif")
             .style("fill", "black");
 
-        function bisect(data, date) {
+{#        function bisect(data, date) {
             i = d3.bisector(d => d[xaxis]).left(data, Date.parse(date));
             i = data.length > i ? i : data.length - 1;
             const a = data[i - 1], b = data[i];
             return date - a[xaxis] > b[xaxis] - date ? b : a;
-        }
+        }#}
 
         {#const tooltip = new Tooltip(svg, x, y, p1);#}
 
         // add a line for each time series
         plot_columns.forEach(c => {
+{#
             svg.append("path")
                 .datum(data)
                 .attr("fill", "none")
@@ -219,15 +224,43 @@ svg path {
                 .attr("stroke-width", 1.5)
                 .attr("d", d3.line()
                     .defined(d => !isNaN(d[c]))
-                    .x(d => x(d[xaxis]))
-                    .y(d => y(d[c]))
+                    .x(function (d) {
+                        var q = xScale(new Date(d.Reported_Date));
+                        return isNaN(q) ? 0 : q;
+                    })
+                    .y(d => isNaN(d[c]) ? 0 : yScale[d[c]])
                 );
+#}
+            let line = d3.line()
+                         .x(d => xScale(new Date(d.Reported_Date)))
+                         .y(d => yScale(d[c]));
+            svg.append("g")
+                .data(data)
+                .append("path")
+                .attr("d", line(data))
+                .attr("fill", "none")
+                .attr("stroke-linejoin", "round")
+                .attr("stroke", age_colors(c));
+            // Add scatter plot of new cases
+            svg.append('g')
+                .selectAll("dot")
+                .data(data)
+                .enter()
+                .append("circle")
+                .attr("cx", function (d) {
+                    return xScale(new Date(d.Reported_Date));
+                })
+                .attr("cy", function (d) {
+                    return yScale(d[c]);
+                })
+                .attr("r", 1.5)
+                .style("fill", age_colors(c));
         });
 
 
     }
-    multi_timeseries_plot("bc_age_over_time", "bc_aged", bc_aged, "Reported_Date",
-        max_counts['bc_aged'], 'New Cases', age_bins);
+    //function multi_timeseries_plot(div_id, title, data, ymax, ylabel, plot_columns) {
+    multi_timeseries_plot("bc_age_over_time", "bc_aged", bc_aged, max_counts['bc_aged'], 'New Cases', age_bins);
 
 </script>
 </body>
