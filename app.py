@@ -65,6 +65,8 @@ def us():
                            'totalTestResultsIncrease', 'positiveFraction',
                            'hospitalizedCurrently', 'inIcuCurrently']]
         s.sort_values(by='day', inplace=True)
+        start_date = datetime.strptime("2020-03-15", '%Y-%m-%d')
+        s.drop(s[s["day"] < start_date].index, inplace=True)      # drop entries prior to start_date
 
         # replace inf and NaN values of positiveFraction with the previous valid value
         s['positiveFraction'].replace(inf, nan, inplace=True)
@@ -358,6 +360,11 @@ def canada_to_dict(province, c, d, t, a, h, i):
     s = pd.merge(s, a, how='left', left_on=['day'], right_on=['day'])
     s = pd.merge(s, h, how='left', left_on=['day'], right_on=['day'])
     s = pd.merge(s, i, how='left', left_on=['day'], right_on=['day'])
+
+    # drop data prior to start_date, because a lot of the early data isn't very good and
+    # plotting those values obscures what's happening now.
+    start_date = datetime.strptime("2020-03-15", '%Y-%m-%d')
+    s.drop(s[s["day"] < start_date].index, inplace=True)
 
     s['ncases7day'] = s.cases.rolling(7).mean()
     s['ndeaths7day'] = s.deaths.rolling(7).mean()
