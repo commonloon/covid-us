@@ -3,8 +3,7 @@ import pandas as pd
 from numpy import nanmax, inf, nan
 import boto3
 from datetime import datetime
-import pyarrow
-import fastparquet
+import requests
 
 import time
 # import yappi
@@ -192,8 +191,17 @@ def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
 @app.route('/bing')
 @app.route('/dev/bing')
 def bing():
-    df = pd.read_parquet(
-        "https://pandemicdatalake.blob.core.windows.net/public/curated/covid-19/bing_covid-19_data/latest/bing_covid-19_data.parquet")
+
+    url = 'https://disease.sh/v3/covid-19/historical?lastdays=2'
+
+    header = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest"
+    }
+
+    r = requests.get(url, headers=header)
+
+    df = pd.read_json(r.text)
     pass
 
 @app.route('/europe')
