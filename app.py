@@ -291,8 +291,11 @@ def canada():
 
     # get hospitalization data
     arcgis = pd.read_csv('https://opendata.arcgis.com/datasets/3afa9ce11b8842cb889714611e6f3076_0.csv')
+    #arcgis['day'] = pd.to_datetime(arcgis['SummaryDate'].apply(str),
+    #                               dayfirst=False, format="%Y/%m/%d", utc=True).dt.tz_convert(None)
     arcgis['day'] = pd.to_datetime(arcgis['SummaryDate'].apply(str),
-                                   dayfirst=False, format="%Y/%m/%d").dt.tz_convert(None)
+                                   dayfirst=False, format="%Y/%m/%d", utc=True)
+    arcgis['day'] = arcgis.day.dt.tz_convert(None)
     arcgis.day -= pd.Timedelta(hours=12)
 
     # most recent day on which the data was updated
