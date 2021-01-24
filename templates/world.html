@@ -134,7 +134,7 @@
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._cases.textContent = d3.format("d")(d.cases) + " new cases";
               this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
-              this._line4.textContent = d3.format(".2f")(d["Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"]) + " avg cases/100k";
+              this._line4.textContent = d3.format(".2f")(d["percapCases"]) + " avg cases/100k";
               this._line5.textContent = d3.format(".2f")(d["percapDeaths7day"]) + " deaths/100k";
           }
           hide() {
@@ -399,7 +399,7 @@
             } else if (view == "perCapita") {
                 sort_helper.forEach(
                     row => graph(row.region, data[row.region],
-                        "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000", "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000",
+                        "percapCases", "percapCases7day",
                         "percapDeaths", "percapDeaths7day",
                         "New Cases/100k pop", "New Deaths/100k pop", row.avg_cases, row.avg_per_capita_cases
                     )
@@ -441,7 +441,7 @@
         <tr>
             <th onclick="display_tabular_data('-new_cases')"> new cases </th>
             <th onclick="display_tabular_data('-avg_cases')"> new cases <br> 7 day avg </th>
-            <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 14 day avg </th>
+            <th onclick="display_tabular_data('-avg_per_capita_cases')"> new cases / 100k pop <br> 7 day avg </th>
             <th onclick="display_tabular_data('-new_deaths')"> new deaths </th>
             <th onclick="display_tabular_data('-avg_deaths')"> new deaths <br> 7 day avg </th>
             <th onclick="display_tabular_data('-avg_per_capita_deaths')"> new deaths / 100k pop <br> 7 day avg </th>

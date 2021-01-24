@@ -23,11 +23,7 @@ import time
 
 app = Flask(__name__)
 
-# The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
-# provide a route with the /dev prefix to use in the local test environment,
-# e.g. to serve the anchor <a href="/dev/us">
 @app.route('/us')
-@app.route('/dev/us')
 def us():
     national_df = pd.read_csv('https://api.covidtracking.com/v1/us/daily.csv')
     national_df['day'] = pd.to_datetime(national_df['date'].apply(str))
@@ -190,7 +186,6 @@ def plot_worldwide_totals(df, last_day, title, headline, source_data_url):
     write_html_to_s3(rendered, "worldwide.html", "covid.pacificloon.ca")
 
 @app.route('/world')
-@app.route('/dev/world')
 def world():
     # get 2019 population estimates for all countries
     pop = pd.read_csv('static/2019_pop.csv')
@@ -219,6 +214,10 @@ def world():
             # skip regions for which I don't have population data in my file (derived from the ECDC data).
             # I could find population data for these regions, but they're not ones I care about plotting
             continue
+        provinces = s.province.to_list()
+        if len(provinces) > 1 and None in provinces:
+            s.province = s.province.replace(to_replace=[None], value=country)
+            print(country)
 
         for prov in s.province.to_list():
             if prov is None:
@@ -287,7 +286,6 @@ def world():
         last_day = max(data.day)
 
 
-
     # plot the worldwide totals
     plot_worldwide_totals(data, last_day,
                           title='Worldwide Covid Cases',
@@ -298,12 +296,12 @@ def world():
     # There's no particular reason for choosing these countries, other than I was interested in
     # seeing the corresponding charts.
     europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
-                     'United Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
+                     'UK', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
                      'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
                      'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
                      'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Bosnia', 'Cyprus', 'Albania',
                      'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
-    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
+    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Burma', 'Indonesia',
                    'Malaysia', 'Australia', 'New Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
                    'Israel', 'Jordan', 'Saudi Arabia', 'S. Korea', 'Philippines', 'Singapore'])
     africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South Africa',
@@ -332,79 +330,9 @@ def world():
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
 
-    pass
 
-@app.route('/europe')
-@app.route('/dev/europe')
-def europe():
-    """
-    This function started with me looking for a way to plot European data, but
-    evolved as the data file turned out to contain worldwide data.
-
-    :return:
-    """
-    #df = pd.read_csv('https://opendata.ecdc.europa.eu/covid19/casedistribution/csv/data.csv')
-    df = pd.read_csv('static/world_to_dec_14.csv')
-    df['day'] = pd.to_datetime(df['dateRep'].apply(str),dayfirst=True)
-    df['day'] = df['day'].dt.strftime('%Y-%m-%d')
-    last_day = max(df.day)
-    max_per_capita = 100 # pick an arbitrary number that should work as of Nov 15, 2020
-
-    # countries = sorted(df.countriesAndTerritories.unique())
-    plot_worldwide_totals(df, last_day,
-                          title='Worldwide Covid Cases',
-                          headline="Sum of all the individual country data.",
-                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-
-    # drop negative death counts, e.g. Spain had a very large negative death count in June
-    # which makes the plot very hard to read.
-    df.drop(df[(df["deaths"] < 0)].index, inplace=True)
-
-    # select the countries to plot for each region.
-    # There's no particular reason for choosing these countries, other than I was interested in
-    # seeing the corresponding charts.
-    europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
-                     'United_Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
-                     'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
-                     'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
-                     'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Cyprus', 'Albania',
-                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
-    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
-                   'Malaysia', 'Australia', 'New_Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
-                   'Israel', 'Jordan', 'Saudi_Arabia', 'South_Korea', 'Philippines', 'Singapore'])
-    africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South_Africa',
-                    'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
-    americas = sorted(['Canada', 'United_States_of_America', 'Mexico', 'Brazil', 'Chile', 'Argentina',
-                       'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
-                       'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
-
-    plot_regional_dataset(df, asia, 'asia.html', last_day, max_per_capita,
-                          title='Asian Covid Charts',
-                          headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
-                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_regional_dataset(df, africa, 'africa.html', last_day, max_per_capita,
-                          title='African Covid Charts',
-                          headline="Covid Data for an arbitrary subset of African countries",
-                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_regional_dataset(df, americas, 'americas.html', last_day, max_per_capita,
-                          title='Americas Covid Charts',
-                          headline="Covid Data for an arbitrary subset of countries in the Americas",
-                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_regional_dataset(df, europe, 'europe.html', last_day, max_per_capita,
-                          title='European Covid Charts',
-                          headline="Covid Data for an arbitrary subset of European countries",
-                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-
-    # return an HTTP redirect to the static file in S3
-    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
-
-
-# The app gets deployed to AWS Lambda as http://<server>/dev, so we need to
-# provide a route with the /dev prefix to use in the local test environment,
-# e.g. to serve the anchor <a href="/dev/us">
 @app.route('/')
 @app.route('/canada')
-@app.route('/dev/canada')
 def canada():
     cases = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/cases_timeseries_prov.csv')
     deaths = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/mortality_timeseries_prov.csv')
@@ -556,7 +484,6 @@ def canada_to_dict(province, c, d, t, a, h, i):
     return s.to_dict(orient='records')
 
 @app.route('/bc')
-@app.route('/dev/bc')
 def bc_map():
     # get all case data for BC
     bc_data = pd.read_csv('http://www.bccdc.ca/Health-Info-Site/Documents/BCCDC_COVID19_Dashboard_Case_Details.csv')
