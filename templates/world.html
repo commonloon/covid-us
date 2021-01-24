@@ -10,14 +10,14 @@
         const chart_width = 1024;
         const countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
-        var max_per_capita = {{ max_per_capita }};
+        var max_per_capita = 120;
         var sort_helper = [];  // start off sorted by countries
         countries.forEach(
             region => sort_helper.push({
                 "region": region,
                 "new_cases": latest(data[region], "cases"),
                 "avg_cases": Math.round(latest(data[region], "ncases7day")),
-                "avg_per_capita_cases": latest(data[region], "Cumulative_number_for_14_days_of_COVID-19_cases_per_100000"),
+                "avg_per_capita_cases": latest(data[region], "percapCases7day"),
                 "new_deaths": latest(data[region], "deaths"),
                 "avg_deaths": latest(data[region], "ndeaths7day"),
                 "percap_deaths": latest(data[region], "percapDeaths"),
@@ -56,7 +56,7 @@
 <body>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <h1>{{ headline }}</h1>
-    <h1 style="color:darkred;">NOTE: Plots end Dec 14, 2020 because the ECDC stopped providing daily new case data </h1>
+    <h1 style="color:darkred;">As of Dec 14th, 2020 the ECDC no longer provides daily numbers, so plots now use a difference data source.</h1>
     <p>See also:</p>
     <span>
     <ul id="buttons">

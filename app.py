@@ -125,10 +125,10 @@ def us():
     write_html_to_s3(rendered, "us.html", "covid.pacificloon.ca")
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/us.html\"></head><body><p>Updated canada.html</p></body></html>"
 
-def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
-                      title,
-                      headline,
-                      source_data_url, ):
+def plot_regional_dataset(df, countries, output_filename, last_day,
+                          title,
+                          headline,
+                          source_data_url, ):
     """
 
     :param df: dataframe containing the relevant data
@@ -140,20 +140,22 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
     """
     data = {}
     for country in countries:
-        pop = df.loc[df.countriesAndTerritories == country, 'popData2019'].iloc[0]
-        s = df.loc[df.countriesAndTerritories == country, ['day', 'cases', 'deaths',
-                                                           'Cumulative_number_for_14_days_of_COVID-19_cases_per_100000']]
+        try:
+            s = df.loc[df.country == country, ['day',
+                                              'cases', 'deaths',
+                                              'percapCases', 'percapDeaths',
+                                              'ncases7day', 'ndeaths7day',
+                                              'percapCases7day', 'percapDeaths7day']]
+        except Exception as e:
+            print(e)
+            raise e
         s.sort_values(by='day', inplace=True)
-        s['Cumulative_number_for_14_days_of_COVID-19_cases_per_100000'] /= 14  # we want /100k pop, not the 14 day accumulation
 
         s['totalTestResultsIncrease'] = 0
         s['positiveFraction'] = 0
-        s['ncases7day'] = s.cases.rolling(7).mean()
-        s['ndeaths7day'] = s.deaths.rolling(7).mean()
         s['nresults7day'] = 0
         s['pf7day'] = 0
-        s['percapDeaths'] = s.deaths * 100000.0 / pop  # per 100k population
-        s['percapDeaths7day'] = s.ndeaths7day * 100000.0 / pop
+
         data[country] = s.to_dict(orient='records')
 
     # render the HTML file and save it to S3
@@ -161,13 +163,12 @@ def plot_ecdc_dataset(df, countries, output_filename, last_day, max_per_capita,
                                countries=countries,
                                data=data,
                                last_day=last_day,
-                               max_per_capita=max_per_capita,
                                title=title,
                                headline=headline,
                                source_data_url=source_data_url)
     write_html_to_s3(rendered, output_filename, "covid.pacificloon.ca")
 
-def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
+def plot_worldwide_totals(df, last_day, title, headline, source_data_url):
     world_df = df.groupby(['day'])[['day', 'cases', 'deaths']].sum()
     world_df.reset_index(level=['day'],inplace=True)
     world_df.sort_values(by='day', inplace=True)
@@ -188,11 +189,14 @@ def plot_ecdc_totals(df, last_day, title, headline, source_data_url):
                                source_data_url=source_data_url)
     write_html_to_s3(rendered, "worldwide.html", "covid.pacificloon.ca")
 
-@app.route('/bing')
-@app.route('/dev/bing')
-def bing():
+@app.route('/world')
+@app.route('/dev/world')
+def world():
+    # get 2019 population estimates for all countries
+    pop = pd.read_csv('static/2019_pop.csv')
 
-    url = 'https://disease.sh/v3/covid-19/historical?lastdays=2'
+    # read the data source
+    url = 'https://disease.sh/v3/covid-19/historical?lastdays=365'
 
     header = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
@@ -202,6 +206,132 @@ def bing():
     r = requests.get(url, headers=header)
 
     df = pd.read_json(r.text)
+    countries = df.country.unique()
+
+    data = None
+    for country in countries:
+        country_data = None
+        s = df[df.country == country]
+        p = pop[pop.region == country]
+        try:
+            pop100k = p.pop2019.iloc(0)[0] / 100000.0  # country population in hundred thousands
+        except Exception as e:
+            # skip regions for which I don't have population data in my file (derived from the ECDC data).
+            # I could find population data for these regions, but they're not ones I care about plotting
+            continue
+
+        for prov in s.province.to_list():
+            if prov is None:
+                try:
+                    c = pd.Series(s[s.country == country].timeline.iloc(0)[0]['cases'], name='cases')
+                    d = pd.Series(s[s.country == country].timeline.iloc(0)[0]['deaths'], name='deaths')
+                    r = pd.Series(s[s.country == country].timeline.iloc(0)[0]['recovered'], name='recovered')
+                    tmp_data = pd.merge(pd.merge(c, d, left_index=True, right_index=True),
+                                            r, left_index=True, right_index=True)
+                    daily = tmp_data.diff()
+                    daily.drop(daily.index[0], inplace=True)
+                    daily = daily.astype({'cases':'int32', 'deaths': 'int32', 'recovered': 'int32'})
+                    tmp_data['day'] = tmp_data.index
+                    tmp_data['day'] = pd.to_datetime(tmp_data['day'].apply(str), dayfirst=False)
+                    tmp_data['day'] = tmp_data['day'].dt.strftime('%Y-%m-%d')
+                    daily = pd.merge(daily, tmp_data.day, left_index=True, right_index=True)
+                    country_data = daily
+                except Exception as e:
+                    raise e
+            else:
+                c = pd.Series(s[s.province == prov].timeline.iloc(0)[0]['cases'], name='cases')
+                d = pd.Series(s[s.province == prov].timeline.iloc(0)[0]['deaths'], name='deaths')
+                r = pd.Series(s[s.province == prov].timeline.iloc(0)[0]['recovered'], name='recovered')
+                prov_data = pd.merge(pd.merge(c, d, left_index=True, right_index=True),
+                                        r, left_index=True, right_index=True)
+                daily = prov_data.diff()
+                daily.drop(daily.index[0], inplace=True)
+                daily = daily.astype({'cases':'int32', 'deaths': 'int32', 'recovered': 'int32'})
+                prov_data['day'] = prov_data.index
+                prov_data['day'] = pd.to_datetime(prov_data['day'].apply(str), dayfirst=False)
+                prov_data['day'] = prov_data['day'].dt.strftime('%Y-%m-%d')
+                daily = pd.merge(daily, prov_data.day, left_index=True, right_index=True)
+
+                if country_data is None:
+                    country_data = daily
+                else:
+                    country_data.cases += daily.cases
+                    country_data.deaths += daily.deaths
+                    country_data.recovered += daily.recovered
+
+        # set negative deaths to zero, on the assumption these are data errors.
+        # Some may be valid corrections to data, but in most cases setting them to zero won't
+        # affect the overall picture for the country.
+        country_data.loc[(country_data.cases < 0), 'cases'] = 0
+        country_data.loc[(country_data.deaths < 0), 'deaths'] = 0
+
+        # add in the country name and compute moving averages
+        country_data['country'] = country
+        try:
+            country_data['percapCases'] = country_data.cases / pop100k
+            country_data['percapDeaths'] = country_data.deaths / pop100k
+            country_data['ncases7day'] = country_data.cases.rolling(7).mean()
+            country_data['ndeaths7day'] = country_data.deaths.rolling(7).mean()
+            country_data['percapCases7day'] = country_data.ncases7day / pop100k
+            country_data['percapDeaths7day'] = country_data.ndeaths7day / pop100k
+        except Exception as e:
+            print(e)
+            continue  # skip countries that throw errors
+
+        # append the data for this country to the main dataframe
+        if data is None:
+            data = country_data
+        else:
+            data = data.append(country_data)
+
+        last_day = max(data.day)
+
+
+
+    # plot the worldwide totals
+    plot_worldwide_totals(data, last_day,
+                          title='Worldwide Covid Cases',
+                          headline="Sum of all the individual country data.",
+                          source_data_url=url)
+
+    # select the countries to plot for each region.
+    # There's no particular reason for choosing these countries, other than I was interested in
+    # seeing the corresponding charts.
+    europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
+                     'United Kingdom', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
+                     'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
+                     'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
+                     'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Bosnia', 'Cyprus', 'Albania',
+                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
+    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Laos', 'Myanmar', 'Indonesia',
+                   'Malaysia', 'Australia', 'New Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
+                   'Israel', 'Jordan', 'Saudi Arabia', 'S. Korea', 'Philippines', 'Singapore'])
+    africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South Africa',
+                    'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
+    americas = sorted(['Canada', 'USA', 'Mexico', 'Brazil', 'Chile', 'Argentina',
+                       'Guatemala', 'Costa Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
+                       'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
+
+    plot_regional_dataset(data, asia, 'asia.html', last_day,
+                          title='Asian Covid Charts',
+                          headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
+                          source_data_url=url)
+    plot_regional_dataset(data, africa, 'africa.html', last_day,
+                          title='African Covid Charts',
+                          headline="Covid Data for an arbitrary subset of African countries",
+                          source_data_url=url)
+    plot_regional_dataset(data, americas, 'americas.html', last_day,
+                          title='Americas Covid Charts',
+                          headline="Covid Data for an arbitrary subset of countries in the Americas",
+                          source_data_url=url)
+    plot_regional_dataset(data, europe, 'europe.html', last_day,
+                          title='European Covid Charts',
+                          headline="Covid Data for an arbitrary subset of European countries",
+                          source_data_url=url)
+
+    # return an HTTP redirect to the static file in S3
+    return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
+
     pass
 
 @app.route('/europe')
@@ -221,10 +351,10 @@ def europe():
     max_per_capita = 100 # pick an arbitrary number that should work as of Nov 15, 2020
 
     # countries = sorted(df.countriesAndTerritories.unique())
-    plot_ecdc_totals(df, last_day,
-                     title='Worldwide Covid Cases',
-                     headline="Sum of all the individual country data.",
-                     source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_worldwide_totals(df, last_day,
+                          title='Worldwide Covid Cases',
+                          headline="Sum of all the individual country data.",
+                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
 
     # drop negative death counts, e.g. Spain had a very large negative death count in June
     # which makes the plot very hard to read.
@@ -248,22 +378,22 @@ def europe():
                        'Guatemala', 'Costa_Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
                        'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
 
-    plot_ecdc_dataset(df, asia, 'asia.html', last_day, max_per_capita,
-                      title='Asian Covid Charts',
-                      headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
-                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_ecdc_dataset(df, africa, 'africa.html', last_day, max_per_capita,
-                      title='African Covid Charts',
-                      headline="Covid Data for an arbitrary subset of African countries",
-                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_ecdc_dataset(df, americas, 'americas.html', last_day, max_per_capita,
-                      title='Americas Covid Charts',
-                      headline="Covid Data for an arbitrary subset of countries in the Americas",
-                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
-    plot_ecdc_dataset(df, europe, 'europe.html', last_day, max_per_capita,
-                      title='European Covid Charts',
-                      headline="Covid Data for an arbitrary subset of European countries",
-                      source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_regional_dataset(df, asia, 'asia.html', last_day, max_per_capita,
+                          title='Asian Covid Charts',
+                          headline="Covid Data for an arbitrary subset of Asian and Polynesian countries",
+                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_regional_dataset(df, africa, 'africa.html', last_day, max_per_capita,
+                          title='African Covid Charts',
+                          headline="Covid Data for an arbitrary subset of African countries",
+                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_regional_dataset(df, americas, 'americas.html', last_day, max_per_capita,
+                          title='Americas Covid Charts',
+                          headline="Covid Data for an arbitrary subset of countries in the Americas",
+                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
+    plot_regional_dataset(df, europe, 'europe.html', last_day, max_per_capita,
+                          title='European Covid Charts',
+                          headline="Covid Data for an arbitrary subset of European countries",
+                          source_data_url="https://data.europa.eu/euodp/en/data/dataset/covid-19-coronavirus-data")
 
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/europe.html\"></head><body><p>Updated europe.html</p></body></html>"
