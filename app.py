@@ -313,7 +313,7 @@ def world():
                    'Malaysia', 'Australia', 'New Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
                    'Israel', 'Jordan', 'Saudi Arabia', 'S. Korea', 'Philippines', 'Singapore'])
     africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South Africa',
-                    'Kenya', 'Egypt', 'Libya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
+                    'Kenya', 'Egypt', 'Libyan Arab Jamahiriya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
     americas = sorted(['Canada', 'USA', 'Mexico', 'Brazil', 'Chile', 'Argentina',
                        'Guatemala', 'Costa Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
                        'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])

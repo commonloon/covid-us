@@ -27,7 +27,12 @@
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
         function latest(d, field) {
             // return the most recent value for field; assumes the data are sorted by day
-            return d[d.length-1][field];
+            var val = null;
+            try {val = d[d.length-1][field];}
+            catch {
+                alert("error");
+            }
+            return val;
         }
 
         // sort function
