@@ -1,9 +1,10 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, url_for, request
 import pandas as pd
 from numpy import nanmax, inf, nan
 import boto3
 from datetime import datetime
 import requests
+from urllib.parse import urljoin
 
 import time
 # import yappi
@@ -42,7 +43,8 @@ def us():
     states_df['totalTestResultsIncrease'].clip(-1, inplace=True)  # discard negative values of totalTestResultsIncrease
     states_df['positiveFraction'].clip(0, 1.0, inplace=True)  # limit positiveFraction to range [0, 1.0]
 
-    states_pop = {row[0]: row[1] for _, row in pd.read_csv("static/US_2020_pop_estimates.csv").iterrows()}
+    states_pop = {row[0]: row[1] for _, row in \
+                  pd.read_csv(urljoin(request.base_url,url_for("static", filename="US_2020_pop_estimates.csv"))).iterrows()}
 
     # There are many erroneous reports of zero or fewer new cases, so for now we drop them.
     # I'm uncomfortable with this long term, as states with low absolute numbers could legitimately
@@ -188,7 +190,7 @@ def plot_worldwide_totals(df, last_day, title, headline, source_data_url):
 @app.route('/world')
 def world():
     # get 2019 population estimates for all countries
-    pop = pd.read_csv('static/2019_pop.csv')
+    pop = pd.read_csv(urljoin(request.base_url, url_for('static', filename='2019_pop.csv')))
 
     # read the data source
     url = 'https://disease.sh/v3/covid-19/historical?lastdays=365'
@@ -361,7 +363,7 @@ def canada():
     arcgis_last_day = max(arcgis.day).strftime("%Y-%m-%d")
 
     # get ICU capacity
-    icu_beds = {row[1]: int(row[3].replace(',', '')) for _, row in pd.read_csv("static/canada_icu_beds.csv").iterrows()}
+    icu_beds = {row[1]: int(row[3].replace(',', '')) for _, row in pd.read_csv(urljoin(request.base_url,url_for("static", filename="canada_icu_beds.csv"))).iterrows()}
 
     # Get list of provinces.
     # Skip 'Repatriated' as that data was never complete enough to be useful
