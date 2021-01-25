@@ -217,10 +217,16 @@ def world():
             # I could find population data for these regions, but they're not ones I care about plotting
             continue
         provinces = s.province.to_list()
+
+        # for some European countries (e.g. Denmark, France and UK), the data source sets the province to None
+        # for the main country and sets the province value when giving data for overseas territories.
+        # This is inconsistent with how the field is used for e.g. Canada or Australia, where there is no entry
+        # for the main country and the main country data has to be summed from the values for its provinces.
         if len(provinces) > 1 and None in provinces:
             s.province = s.province.replace(to_replace=[None], value=country)
-            print(country)
 
+        # sum the province data to get totals for each country.  If the province is None, assume the data is
+        # for the entire country.
         for prov in s.province.to_list():
             if prov is None:
                 try:
