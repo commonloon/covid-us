@@ -233,6 +233,7 @@ def world():
                     c = pd.Series(s[s.country == country].timeline.iloc(0)[0]['cases'], name='cases')
                     d = pd.Series(s[s.country == country].timeline.iloc(0)[0]['deaths'], name='deaths')
                     r = pd.Series(s[s.country == country].timeline.iloc(0)[0]['recovered'], name='recovered')
+
                     tmp_data = pd.merge(pd.merge(c, d, left_index=True, right_index=True),
                                             r, left_index=True, right_index=True)
                     daily = tmp_data.diff()
@@ -293,6 +294,9 @@ def world():
 
         last_day = max(data.day)
 
+    # Fix problem with new case value for December 10th in Turkey.
+    # Doing the fix here means the 7 day moving average is still messed up, but at least the chart uses a better scale.
+    data.loc[(data['country'] == 'Turkey') & (data['day'] == '2020-12-10'), 'cases'] = 0
 
     # plot the worldwide totals
     plot_worldwide_totals(data, last_day,
