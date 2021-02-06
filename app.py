@@ -307,20 +307,62 @@ def world():
     # select the countries to plot for each region.
     # There's no particular reason for choosing these countries, other than I was interested in
     # seeing the corresponding charts.
-    europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
-                     'UK', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
-                     'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
-                     'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
-                     'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Bosnia', 'Cyprus', 'Albania',
-                     'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
-    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Burma', 'Indonesia',
-                   'Malaysia', 'Australia', 'New Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
-                   'Israel', 'Jordan', 'Saudi Arabia', 'S. Korea', 'Philippines', 'Singapore'])
-    africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South Africa',
-                    'Kenya', 'Egypt', 'Libyan Arab Jamahiriya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
-    americas = sorted(['Canada', 'USA', 'Mexico', 'Brazil', 'Chile', 'Argentina',
-                       'Guatemala', 'Costa Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
-                       'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
+    #europe = sorted(['France', 'Germany', 'Denmark', 'Spain', 'Greece', 'Italy',
+    #                 'UK', 'Netherlands', 'Poland', 'Estonia', 'Latvia',
+    #                 'Russia', 'Norway', 'Sweden', 'Switzerland', 'Belgium', 'Hungary', 'Romania',
+    #                 'Croatia', 'Austria', 'Belarus', 'Czechia', 'Ukraine', 'Ireland', 'Finland',
+    #                 'Iceland', 'Bulgaria', 'Malta', 'Serbia', 'Bosnia', 'Cyprus', 'Albania',
+    #                 'Slovenia', 'Slovakia', 'Moldova', 'Kosovo', "Portugal"])
+    europe = sorted(["Albania", "Andorra", "Armenia", "Austria", "Azerbaijan",
+                    "Belarus", "Belgium", "Bosnia", "Bulgaria", "Croatia",
+                    "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France",
+                     "Georgia", "Germany", "Greece", "Hungary", "Iceland",
+                    "Ireland", "Italy", "Kosovo","Latvia", "Liechtenstein", "Lithuania",
+                     "Luxembourg", "Malta",
+                    "Moldova", "Montenegro", "Netherlands",
+                    "Macedonia", "Norway", "Poland", "Portugal", "Romania",
+                    "Russia", "San Marino", "Serbia", "Slovakia", "Slovenia",
+                    "Spain", "Sweden", "Switzerland", "Ukraine", "UK"
+                    ])
+#    asia = sorted(['China', 'India', 'Pakistan', 'Bangladesh', 'Thailand', 'Burma', 'Indonesia',
+#                   'Malaysia', 'Australia', 'New Zealand', 'Mongolia', 'Afghanistan', 'Iran', 'Turkey',
+#                   'Israel', 'Jordan', 'Saudi Arabia', 'S. Korea', 'Philippines', 'Singapore'])
+    asia = sorted(["Afghanistan", "Bahrain", "Bangladesh", "Bhutan", "Brunei",
+                    "Burma", "Cambodia", "China", "India", "Indonesia", "Iran",
+                    "Iraq", "Israel", "Japan", "Jordan", "Kazakhstan", "Kuwait",
+                    "Kyrgyzstan", "Lebanon",
+                    "Malaysia", "Maldives", "Mongolia", "Nepal",
+                    "Oman", "Pakistan", "Philippines", "Qatar",
+                    "Saudi Arabia", "Singapore", "S. Korea", "Sri Lanka",
+                    "Syrian Arab Republic", "Taiwan", "Tajikistan", "Thailand",
+                    "Turkey", "UAE", "Uzbekistan", "Vietnam", "Yemen"
+                    ])
+    #africa = sorted(['Ethiopia', 'Sudan', 'Congo', 'Nigeria', 'Morocco', 'Ghana', 'South Africa',
+    #                'Kenya', 'Egypt', 'Libyan Arab Jamahiriya', 'Tunisia', 'Algeria', 'Namibia', 'Uganda'])
+    africa = sorted(["Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi",
+                    "Cameroon", "Cabo Verde", "Central African Republic", "Chad", "Comoros",
+                    "Congo", "DRC",
+                    "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea",
+                    "Ethiopia", "Gabon", "Gambia", "Ghana", "Guinea", "Guinea-Bissau",
+                    "Kenya", "Lesotho", "Liberia", "Libyan Arab Jamahiriya",
+                    "Madagascar", "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco",
+                    "Mozambique", "Namibia", "Niger", "Nigeria", "Rwanda",
+                    "Sao Tome and Principe", "Senegal", "Seychelles", "Sierra Leone",
+                    "Somalia", "South Africa", "South Sudan", "Sudan",
+                    "Togo", "Tunisia", "Uganda",
+                    "Zambia", "Zimbabwe"])
+    #americas = sorted(['Canada', 'USA', 'Mexico', 'Brazil', 'Chile', 'Argentina',
+    #                   'Guatemala', 'Costa Rica', 'Haiti', 'Cuba', 'Venezuela', 'Colombia', 'Bolivia',
+    #                   'Peru', 'Uruguay', 'Paraguay', 'Belize', 'Jamaica'])
+    americas = sorted(["Argentina", "Bahamas", "Barbados", "Belize",
+                        "Bolivia", "Brazil", "Canada",
+                        "Chile", "Colombia", "Costa Rica", "Cuba", "Dominican Republic",
+                        "Ecuador", "El Salvador", "Grenada", "Guatemala", "Guyana",
+                        "Haiti", "Honduras", "Jamaica", "Mexico",
+                        "Nicaragua", "Panama", "Paraguay", "Peru",
+                        "Trinidad and Tobago",
+                        "USA", "Uruguay", "Venezuela"
+                        ])
 
     plot_regional_dataset(data, asia, 'asia.html', last_day,
                           title='Asian Covid Charts',
