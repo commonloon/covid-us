@@ -187,10 +187,128 @@ def plot_worldwide_totals(df, last_day, title, headline, source_data_url):
                                source_data_url=source_data_url)
     write_html_to_s3(rendered, "worldwide.html", "covid.pacificloon.ca")
 
+
+def plot_vaccinations(df, countries, output_filename,
+                          title,
+                          headline,
+                          source_data_url):
+    """
+
+    :param df: dataframe containing the relevant data
+    :param countries: list of countries to plot
+    :param output_filename: name of the resulting HTML file in the S3 bucket
+    :param last_day: day when the source data was last updated
+    :param max_per_capita: used to set a fixed scale for plots of per capita data, so countries compare easily
+    :return:
+    """
+    last_day = max(df.day)
+    data = {}
+    for country in countries:
+        try:
+            s = df.loc[df.country == country, ['day',
+                                              'daily_doses', 'total_doses',
+                                              'percapDailyDoses', 'dailyDoses7day',
+                                              'percapTotalDoses', 'percapDailyDoses7day']]
+        except Exception as e:
+            print(e)
+            raise e
+        s.sort_values(by='day', inplace=True)
+
+        data[country] = s.to_dict(orient='records')
+
+    # render the HTML file and save it to S3
+    rendered = render_template("jab.html",
+                               countries=countries.tolist(),
+                               data=data,
+                               last_day=last_day,
+                               title=title,
+                               headline=headline,
+                               source_data_url=source_data_url)
+    write_html_to_s3(rendered, output_filename, "covid.pacificloon.ca")
+
+
+def munge_vaccine_data(pop):
+    """
+    Get cumulative COVID vaccination data from disease.sh and process it to get per-day values
+    :return:
+    """
+    source_url = 'https://disease.sh/v3/covid-19/vaccine/coverage/countries?lastdays=365'
+
+    header = {
+        "User-Agent":
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest"
+    }
+
+    r = requests.get(source_url, headers=header)
+
+    # make a dataframe of the case data
+    df = pd.read_json(r.text)
+    countries = df.country.unique()
+
+    data = None
+    for country in countries:
+        country_data = None
+        s = df[df.country == country]
+        p = pop[pop.region == country]
+        try:
+            pop100k = p.pop2019.iloc(0)[0] / 100000.0  # country population in hundred thousands
+        except Exception as e:
+            # skip regions for which I don't have population data in my file (derived from the ECDC data).
+            # I could find population data for these regions, but they're not ones I care about plotting
+            continue
+
+        try:
+            # v is the cumulative total of vaccine doses delivered
+            v = pd.Series(s[s.country == country].timeline.iloc(0)[0], name='total_doses')
+            daily = v.diff().rename('daily_doses')
+            daily.drop(daily.index[0], inplace=True) # first value is always a NaN
+            v.drop(v.index[0], inplace=True) # match length of daily series
+            country_data = pd.merge(v, daily, left_index=True, right_index=True)
+
+            # add the day as a column in a sortable string format
+            country_data['day'] = country_data.index
+            country_data['day'] = pd.to_datetime(country_data['day'].apply(str), dayfirst=False)
+            country_data['day'] = country_data['day'].dt.strftime('%Y-%m-%d')
+
+            # add in the country name and compute moving averages
+            country_data['country'] = country
+            try:
+                country_data['percapTotalDoses'] = country_data.total_doses / pop100k
+                country_data['percapDailyDoses'] = country_data.daily_doses / pop100k
+                country_data['dailyDoses7day'] = country_data.daily_doses.rolling(7).mean()
+                country_data['percapDailyDoses7day'] = country_data.percapDailyDoses.rolling(7).mean()
+            except Exception as e:
+                print(country + ' ' + str(e))
+                continue  # skip countries that throw errors
+        except Exception as e:
+            print(country + ' ' + str(e))
+            continue
+        pass
+
+        # append the data for this country to the main dataframe
+        if data is None:
+            data = country_data
+        else:
+            data = data.append(country_data)
+
+    # The first few days of the 7 day moving averages will typically be NaN, but it
+    # should be fine to set them to zero
+    data['dailyDoses7day'].replace(inf, nan, inplace=True)
+    data['percapDailyDoses7day'].replace(inf, nan, inplace=True)
+
+    plot_vaccinations(data, countries, "jabs.html", "Vaccinations", "Vaccination Status", source_url)
+
+    return
+
+
 @app.route('/world')
 def world():
     # get 2019 population estimates for all countries
     pop = pd.read_csv(urljoin(request.base_url, url_for('static', filename='2019_pop.csv')))
+
+    # get and process data on vaccinations
+    munge_vaccine_data(pop)
 
     # read the data source
     url = 'https://disease.sh/v3/covid-19/historical?lastdays=365'
@@ -202,6 +320,7 @@ def world():
 
     r = requests.get(url, headers=header)
 
+    # make a dataframe of the case data
     df = pd.read_json(r.text)
     countries = df.country.unique()
 
@@ -225,7 +344,7 @@ def world():
         if len(provinces) > 1 and None in provinces:
             s.province = s.province.replace(to_replace=[None], value=country)
 
-        # sum the province data to get totals for each country.  If the province is None, assume the data is
+        # sum the province case data to get totals for each country.  If the province is None, assume the data is
         # for the entire country.
         for prov in s.province.to_list():
             if prov is None:

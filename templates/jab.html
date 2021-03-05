@@ -6,11 +6,55 @@
     <meta charset="UTF-8">
     <title>{{ title }}</title>
     <script>
-        const chart_height = 512;
+        const chart_height = 250;
         const chart_width = 1024;
-        var countries = {{ countries|tojson }};
+        const countries = {{ countries|tojson }};
         var data = {{ data|tojson }};
-    </script>
+        var max_per_capita = 120;
+        var sort_helper = [];  // start off sorted by countries
+        countries.forEach(
+            region => sort_helper.push({
+                "region": region,
+                "total_doses": Math.round(latest(data[region], "total_doses")),
+                "percapTotalDoses": Math.round(latest(data[region], "percapTotalDoses")),
+                "daily_doses": Math.round(latest(data[region], "daily_doses")),
+                "dailyDoses7day": Math.round(latest(data[region], "dailyDoses7day")),
+                "percapDailyDoses": Math.round(latest(data[region], "percapDailyDoses")),
+                "percapDailyDoses7day": Math.round(latest(data[region], "percapDailyDoses7day")),
+        })
+        );
+        var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
+        function latest(d, field) {
+            // return the most recent value for field; assumes the data are sorted by day
+            var val = null;
+            try {val = d[d.length-1][field];}
+            catch {
+                //alert("error");
+                val = null;
+            }
+            return val;
+        }
+
+        // sort function
+        function dynamicSort(property) {
+            // NOTE: sorts in descending order if property name prefixed by "-", e.g. "-region"
+            var sortOrder = 1;
+            if(property[0] === "-") {
+                sortOrder = -1;
+                property = property.substr(1);
+            }
+            return function (a,b) {
+                /* next line works with strings and numbers,
+                 * and you may want to customize it to your needs
+                 */
+                var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+                if (Number.isFinite(a[property]) && !Number.isFinite(b[property])) {
+                    result = 1;  // treat any number as greater than a NaN or a string
+                }
+                return result * sortOrder;
+            }
+        }
+        </script>
     <link rel="stylesheet" href="static/covid.css">
 </head>
 
@@ -20,14 +64,14 @@
     <p>See also:</p>
     <span>
     <ul id="buttons">
-        <li><a href="/africa.html">Africa</a></li>
-        <li><a href="/asia.html">Asia</a></li>
-        <li><a href="/americas.html">Americas</a></li>
-        <li><a href="/canada.html">Canada (prov)</a></li>
-        <li><a href="/europe.html">Europe</a></li>
-        <li><a href="/us.html">US and states</a></li>
-        <li><a href="/worldwide.html">Worldwide</a></li>
-        <li><a href="/jabs.html">Vaccinations</a></li>
+    <li><a href="/africa.html">Africa</a></li>
+    <li><a href="/asia.html">Asia</a></li>
+    <li><a href="/americas.html">Americas</a></li>
+    <li><a href="/canada.html">Canada (prov)</a></li>
+    <li><a href="/europe.html">Europe</a></li>
+    <li><a href="/us.html">US and states</a></li>
+    <li><a href="/worldwide.html">Worldwide</a></li>
+    <li><a href="/jabs.html">Vaccinations</a></li>
     </ul>
     </span>
     <br>
@@ -38,53 +82,70 @@
         <a href=" {{ source_data_url }}">Source data</a> last updated {{ last_day }}
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
-    <p>"New" case counts given in graph titles are 7 day moving averages of new cases.</p>
-    <p>Values in this chart were obtained by summing the data for all the
-        geographical regions (mostly countries) in the source data.
-        They are almost certainly low.</p>
-    <h2>Source for the app that generates these files is found in github at
+    <p>Values given in graph titles are the latest 7 day moving averages.</p>
+    <p>"/100k pop" values are calculated using <a href="static/2019_pop.csv">2019 population estimates</a>.
+        I forget where I got them from; I think wikipedia.</p>
+
+     <h2>Source for the app that generates these files is found in github at
         <a href="https://github.com/commonloon/covid-us">commonloon/covid-us</a>
     </h2>
+    <h2><a href="https://nextstrain.org/ncov/global">nextstrain.org</a>
+    is a cool site with info about the distribution of COVID-19 variants.</h2>
     <table>
         <tr>
             <td>Chart type</td>
             <td>
                 <select id="select_view" onchange="display_selected()">
-                    <option value="cases">New Cases and Deaths</option>
+                    <option value="daily_doses">New Doses administered</option>
                 </select>
             </td>
         </tr>
-
+        <tr><td>Sort by:</td><td>
+            <select id="select_sort" onchange="display_selected()">
+                <option value="region">Alphabetical</option>
+                <option value="-percapTotalDoses">{{ last_day }} total doses / 100k pop</option>
+                <option value="-total_doses" selected>{{ last_day }} total doses </option>
+                <option value="-percapDailyDoses7day">{{ last_day }} daily new doses (7 day avg) </option>
+            </select>
+        </td></tr>
     </table>
     <table id="plot_table"><tbody id="plots">
-        <tr><td><div id="{{ country }}">placeholder</div></td></tr>
+{% for country in countries %}
+    <tr><td><div id="{{ country }}">placeholder</div></td></tr>
+{% endfor %}
     </tbody>
     </table>
     <script>
         class Tooltip {
-          constructor(svg, x, y) {
+          constructor(svg, x, y, field) {
             this.node = svg.append("g")
                 .attr("pointer-events", "none").attr("display", "none")
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-27").attr("width", "54").attr("y", "-30").attr("height", "30").attr("fill", "white");
-            this._day = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._cases = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._deaths = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+                .attr("x", "-45").attr("width", "90").attr("y", "-52").attr("height", "54").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._line2 = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._line3 = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._line4 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
+            this.field = field;
           }
+
           show(d) {
               var node = this.node.node();
               node.removeAttribute("display");
               this._circle.removeAttribute("display");
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
-              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d.cases) + ")")
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
-              this._cases.textContent = d3.format("d")(d.cases) + " new cases";
-              this._deaths.textContent = d3.format("d")(d.deaths) + " new deaths";
+              this._line2.textContent = d3.format("d")(d["daily_doses"]) + " new doses";
+              this._line3.textContent = d3.format("d")(d["percapDailyDoses"]) + " new doses / 100k";
+              this._line4.textContent = d3.format(".2f")(d["percapDailyDoses7day"]) + " avg new doses/100k";
+              this._line5.textContent = d3.format(".2f")(d["total_doses"]) + " cumulative doses";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -92,12 +153,10 @@
           }
         }
 
-        function graph(country, covid, p1, l1, p2, l2, label1, label2) {
+        function graph(country, covid, p1, l1, p2, l2, label1, label2, latest_daily, latest_total) {
             var divname = "div#".concat(country);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
-
-            var latest_cases = Math.round(covid[covid.length-1]["ncases7day"]);
 
             try {
                 // append a new row to hold this plot
@@ -107,7 +166,7 @@
                 var div = d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
-                var margin = {top: 10, right: 50, bottom: 30, left: 60},
+                var margin = {top: 10, right: 90, bottom: 30, left: 60},
                     width = chart_width - margin.left - margin.right,
                     height = chart_height - margin.top - margin.bottom;
 
@@ -163,7 +222,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = country + ": " + latest_cases + " New Cases";
+                var title = country + ": " + latest_daily + " New Doses (" + latest_total + " cumulative total)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -179,7 +238,7 @@
                     const a = data[i - 1], b = data[i];
                     return date - a.day > b.day - date ? b : a;
                 }
-                const tooltip = new Tooltip(svg, x, y);
+                const tooltip = new Tooltip(svg, x, y, p1);
                 div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
                     .on("mouseleave", event => tooltip.hide());
 
@@ -241,22 +300,27 @@
             }
 
         }
+
         function display_selected() {
+            var view = document.getElementById("select_view").value;
+            var sort_by = document.getElementById("select_sort").value;
+
+            // sort the regions into the desired order
+            sort_helper.sort(dynamicSort(sort_by), inplace=true);
 
             // remove the old rows
             d3.select("tbody#plots").selectAll("tr").remove();
 
             // display the items in the appropriately sorted order
-            countries.forEach(
-                function (country) {
-                    graph(country, data[country],
-                        "cases", "ncases7day", "deaths", "ndeaths7day",
-                        "New Cases", "New Deaths"
-            );
-
-                }
-            )
-         }
+            if (view == "daily_doses") {
+                sort_helper.forEach(
+                    row => graph(row.region, data[row.region],
+                        "daily_doses", "dailyDoses7day", "total_doses", "total_doses",
+                        "Daily New Doses", "Total Doses", row.dailyDoses7day, row.total_doses
+                    )
+                );
+            }
+        }
 
         // convert "day" values to javascript date.  We need to do this only once.
         countries.forEach(
@@ -270,6 +334,57 @@
         )
 
         display_selected();
+
+    </script>
+    <p>&nbsp;</p>
+    <hr>
+    <p>&nbsp;</p>
+    <p>Click on a column header to sort the table below.</p>
+    <table id="numeric_table">
+        <thead>
+        <tr>
+            <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Country </th>
+            <th colspan="4" align="center">Date: {{ last_day }}</th>
+        </tr>
+        <tr>
+            <th onclick="display_tabular_data('-total_doses')"> Total Doses </th>
+            <th onclick="display_tabular_data('-percapTotalDoses')"> Total Doses <br> /100k pop</th>
+            <th onclick="display_tabular_data('-dailyDoses7day')"> New Doses <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-percapDailyDoses7day')"> New Doses / 100k <br> 7 day avg </th>
+        </tr>
+        </thead>
+        <tbody id="ntb"></tbody>
+    </table>
+
+    <script>
+        // select the table we're working on
+        var sort_table = d3.select("#numeric_table");
+        // add sort function to the table header
+        display_tabular_data("region");
+        function display_tabular_data(sort_by) {
+            // sort the data as requested
+            table_sort_helper.sort(dynamicSort(sort_by), inplace=true);
+
+            // add table rows
+            var sort_table = d3.select("#numeric_table").select("tbody");
+            sort_table.selectAll("tr").remove(); // remove the existing table contents
+            var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
+                .selectAll("td")
+                .data(function(d) {
+                    return [d.region, d.total_doses, d.percapTotalDoses, d.dailyDoses7day,
+                            d.percapDailyDoses7day];})
+                .enter()
+                .append("td")
+                .attr("align", "right")
+                .text(function(d) {
+                    if (Number.isFinite(d) && !Number.isInteger(d)) {
+                        if (d < 1) {return d.toFixed(2);}
+                        return d.toFixed(1);
+                    } else {
+                        return d;
+                    }
+                });
+        }
     </script>
 
 </body>
