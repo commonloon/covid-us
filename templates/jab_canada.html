@@ -343,6 +343,8 @@
     <hr>
     <p>&nbsp;</p>
     <p>Click on a column header to sort the table below.</p>
+    <p><em>NOTE: not all regions publish information on the number of completed vaccinations, so the value may be wrong
+    e.g. as I write this, the source data shows zero completed vaccinations for Quebec, which is not correct.</em></p>
     <table id="numeric_table">
         <thead>
         <tr>
@@ -350,12 +352,12 @@
             <th colspan="8" align="center">Date: {{ last_day }}</th>
         </tr>
         <tr>
-            <th onclick="display_tabular_data('-dvaccine')"> New Supply </th>
-            <th onclick="display_tabular_data('-avaccine')"> Doses Administered </th>
-            <th onclick="display_tabular_data('-cvaccine')"> Vaccinations Completed </th>
-            <th onclick="display_tabular_data('-cumulative_dvaccine')"> Total Doses Received </th>
-            <th onclick="display_tabular_data('-cumulative_avaccine')"> Total Doses Administered </th>
-            <th onclick="display_tabular_data('-cumulative_cvaccine')"> Total Vaccinations Completed </th>
+            <th onclick="display_tabular_data('-received')"> New Supply </th>
+            <th onclick="display_tabular_data('-administered')"> Doses Administered </th>
+            <th onclick="display_tabular_data('-completed')"> Vaccinations Completed </th>
+            <th onclick="display_tabular_data('-total_received')"> Total Doses Received </th>
+            <th onclick="display_tabular_data('-total_administered')"> Total Doses Administered </th>
+            <th onclick="display_tabular_data('-total_completed')"> Total Vaccinations Completed </th>
             <th onclick="display_tabular_data('-admin7day')"> Daily Doses Administered <br> 7 day avg </th>
             <th onclick="display_tabular_data('-completed7day')"> Daily Vaccinations Completed <br> 7 day avg </th>
         </tr>
