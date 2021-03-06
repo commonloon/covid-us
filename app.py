@@ -520,6 +520,14 @@ def canada():
     national_deaths['day'] = pd.to_datetime(national_deaths['date_death_report'].apply(str),dayfirst=True)
     national_tests['day'] = pd.to_datetime(national_tests['date_testing'].apply(str), dayfirst=True)
 
+    # vaccination data
+    v_received = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/vaccine_distribution_timeseries_prov.csv')
+    v_administered= pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/vaccine_administration_timeseries_prov.csv')
+    v_completed = pd.read_csv('https://raw.githubusercontent.com/ishaberry/Covid19Canada/master/timeseries_prov/vaccine_completion_timeseries_prov.csv')
+    v_received['day'] = pd.to_datetime(v_received['date_vaccine_distributed'].apply(str),dayfirst=True)
+    v_administered['day'] = pd.to_datetime(v_administered['date_vaccine_administered'].apply(str),dayfirst=True)
+    v_completed['day'] = pd.to_datetime(v_completed['date_vaccine_completed'].apply(str),dayfirst=True)
+
     # get hospitalization data
     arcgis = pd.read_csv('https://opendata.arcgis.com/datasets/3afa9ce11b8842cb889714611e6f3076_0.csv')
     #arcgis['day'] = pd.to_datetime(arcgis['SummaryDate'].apply(str),
@@ -554,23 +562,29 @@ def canada():
         'Quebec': 'QC',
         'Saskatchewan': 'SK',
         'Yukon': 'YT',
-        'Canada': 'Canada'
     }
+    prov_plus_map = prov_map.copy()
+    prov_plus_map['Canada'] = 'Canada'
 
     data = {}
+    vaccine_data = {}
     for prov in provinces:
-        arcgis_abbrev = prov_map[prov]
+        arcgis_abbrev = prov_plus_map[prov]
         c = cases.loc[cases.province == prov, ['day', 'cases']]
         d = deaths.loc[deaths.province == prov, ['day', 'deaths']]
         t = tests.loc[tests.province == prov, ['day', 'testing']]
         a = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalActive']]
         h = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalHospitalized']]
         i = arcgis.loc[arcgis.Abbreviation == arcgis_abbrev, ['day', 'TotalICU']]
+        vr = v_received[v_received.province == prov][['day', 'dvaccine', 'cumulative_dvaccine']].copy()
+        va = v_administered[v_administered.province == prov][['day', 'avaccine', 'cumulative_avaccine']].copy()
+        vc = v_completed[v_completed.province == prov][['day', 'cvaccine', 'cumulative_cvaccine']].copy()
         data[prov_map[prov]] = canada_to_dict(prov, c, d, t, a, h, i)
+        vaccine_data[prov_map[prov]] = canada_vaccine_to_dict(prov, vr, va, vc)
         pass
 
     # add the national data
-    data[prov_map['Canada']] = canada_to_dict('Canada',
+    data[prov_plus_map['Canada']] = canada_to_dict('Canada',
                                               national_cases.filter(['day', 'cases'], axis=1),
                                               national_deaths.filter(['day', 'deaths'], axis=1),
                                               national_tests.filter(['day', 'testing'], axis=1),
@@ -579,12 +593,47 @@ def canada():
                                               arcgis.loc[arcgis.Abbreviation == 'CA', ['day', 'TotalICU']]
                                               )
     # render the HTML file and save it to S3
-    rendered = render_template("canada.html", provinces=sorted(prov_map.values()), data=data,
+    rendered = render_template("canada.html", provinces=sorted(prov_plus_map.values()), data=data,
                                last_day=last_day, arcgis_last_day=arcgis_last_day, icu_beds=icu_beds)
     write_html_to_s3(rendered, "canada.html", "covid.pacificloon.ca")
 
+    # render the vaccine data HTML file and save it to S3
+    rendered = render_template("jab_canada.html", regions=sorted(prov_map.values()), data=vaccine_data,
+                               last_day=max(v_administered.day).strftime("%Y-%m-%d"))
+    write_html_to_s3(rendered, "jab_canada.html", "covid.pacificloon.ca")
+
+
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
+
+def canada_vaccine_to_dict(province, vr, va, vc):
+    """
+
+    :param province:
+    :param vr: vaccines received
+    :param va: doses administered
+    :param vc: vaccinations completed
+    :return:
+    """
+    vr.sort_values(by='day', inplace=True)
+    va.sort_values(by='day', inplace=True)
+    vc.sort_values(by='day', inplace=True)
+
+    # merge into a single dataframe
+    s = pd.merge(vr, va, how='left', left_on=['day'], right_on=['day'])
+    s = pd.merge(s,  vc, how='left', left_on=['day'], right_on=['day'])
+
+    # compute any 7 day averages
+    s['admin7day'] = s.avaccine.rolling(7).mean()
+    s['completed7day'] = s.cvaccine.rolling(7).mean()
+
+    # Replace NaN values with zero
+    s.fillna(value=0, inplace=True)
+
+    # convert the date to a string in a sortable format
+    s['day'] = s['day'].dt.strftime('%Y-%m-%d')
+
+    return s.to_dict(orient='records')
 
 
 def canada_to_dict(province, c, d, t, a, h, i):

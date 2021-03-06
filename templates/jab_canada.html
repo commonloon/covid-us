@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <script>
+        const chart_height = 250;
+        const chart_width = 1024;
+        const regions = {{ regions|tojson }};
+        var data = {{ data|tojson }};
+        var max_per_capita = 120;
+        var sort_helper = [];  // start off sorted by regions
+        regions.forEach(
+            region => sort_helper.push({
+                "region": region,
+                "administered": Math.round(latest(data[region], "avaccine")),
+                "received": Math.round(latest(data[region], "dvaccine")),
+                "completed": Math.round(latest(data[region], "cvaccine")),
+                "total_administered": Math.round(latest(data[region], "cumulative_avaccine")),
+                "total_received": Math.round(latest(data[region], "cumulative_dvaccine")),
+                "total_completed": Math.round(latest(data[region], "cumulative_cvaccine")),
+                "admin7day": Math.round(latest(data[region], "admin7day")),
+                "completed7day": Math.round(latest(data[region], "completed7day")),
+        })
+        );
+        var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
+        function latest(d, field) {
+            // return the most recent value for field; assumes the data are sorted by day
+            var val = null;
+            try {val = d[d.length-1][field];}
+            catch {
+                //alert("error");
+                val = null;
+            }
+            return val;
+        }
+
+        // sort function
+        function dynamicSort(property) {
+            // NOTE: sorts in descending order if property name prefixed by "-", e.g. "-region"
+            var sortOrder = 1;
+            if(property[0] === "-") {
+                sortOrder = -1;
+                property = property.substr(1);
+            }
+            return function (a,b) {
+                /* next line works with strings and numbers,
+                 * and you may want to customize it to your needs
+                 */
+                var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+                if (Number.isFinite(a[property]) && !Number.isFinite(b[property])) {
+                    result = 1;  // treat any number as greater than a NaN or a string
+                }
+                return result * sortOrder;
+            }
+        }
+        </script>
+    <link rel="stylesheet" href="static/covid.css">
+</head>
+
+<body>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <h1>{{ headline }}</h1>
+    <p>See also:</p>
+    <span>
+    <ul id="buttons">
+    <li><a href="/africa.html">Africa</a></li>
+    <li><a href="/asia.html">Asia</a></li>
+    <li><a href="/americas.html">Americas</a></li>
+    <li><a href="/canada.html">Canada (prov)</a></li>
+    <li><a href="/europe.html">Europe</a></li>
+    <li><a href="/us.html">US and states</a></li>
+    <li><a href="/worldwide.html">Worldwide</a></li>
+    <li><a href="/jabs.html">Vaccinations</a></li>
+    </ul>
+    </span>
+    <br>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <h2 style="font-family: sans-serif;">
+        <a href=" {{ source_data_url }}">Source data</a> last updated {{ last_day }}
+    </h2>
+    <p>Lines show 7 day moving averages, while points show the raw data.</p>
+    <p>Values given in graph titles are the latest 7 day moving averages.</p>
+    <p>"/100k pop" values are calculated using <a href="static/2019_pop.csv">2019 population estimates</a>.
+        I forget where I got them from; I think wikipedia.</p>
+
+     <h2>Source for the app that generates these files is found in github at
+        <a href="https://github.com/commonloon/covid-us">commonloon/covid-us</a>
+    </h2>
+    <h2><a href="https://nextstrain.org/ncov/global">nextstrain.org</a>
+    is a cool site with info about the distribution of COVID-19 variants.</h2>
+    <table>
+        <tr>
+            <td>Chart type</td>
+            <td>
+                <select id="select_view" onchange="display_selected()">
+                    <option value="daily_doses">New Doses administered</option>
+                </select>
+            </td>
+        </tr>
+        <tr><td>Sort by:</td><td>
+            <select id="select_sort" onchange="display_selected()">
+                <option value="region">Alphabetical</option>
+                <option value="-percapTotalDoses">{{ last_day }} total doses / 100k pop</option>
+                <option value="-total_doses" selected>{{ last_day }} total doses </option>
+                <option value="-percapDailyDoses7day">{{ last_day }} daily new doses (7 day avg) </option>
+            </select>
+        </td></tr>
+    </table>
+    <table id="plot_table"><tbody id="plots">
+{% for region in regions %}
+    <tr><td><div id="{{ region }}">placeholder</div></td></tr>
+{% endfor %}
+    </tbody>
+    </table>
+    <script>
+        class Tooltip {
+          constructor(svg, x, y, field) {
+            this.node = svg.append("g")
+                .attr("pointer-events", "none").attr("display", "none")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", "10").attr("text-anchor", "middle");
+            this.node.append("rect")
+                .attr("x", "-45").attr("width", "90").attr("y", "-52").attr("height", "54").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._line2 = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._line3 = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._line4 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+            this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
+            this.scale_x = x;
+            this.scale_y = y;
+            this.field = field;
+          }
+
+          show(d) {
+              var node = this.node.node();
+              node.removeAttribute("display");
+              this._circle.removeAttribute("display");
+              node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
+              this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
+              this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
+              this._line2.textContent = d3.format("d")(d["daily_doses"]) + " new doses";
+              this._line3.textContent = d3.format("d")(d["percapDailyDoses"]) + " new doses / 100k";
+              this._line4.textContent = d3.format(".2f")(d["percapDailyDoses7day"]) + " avg new doses/100k";
+              this._line5.textContent = d3.format(".2f")(d["total_doses"]) + " cumulative doses";
+          }
+          hide() {
+            this.node.node().setAttribute("display", "none");
+            this._circle.setAttribute("display", "none");
+          }
+        }
+
+        function graph(region, covid, p1, l1, p2, l2, label1, label2, latest_daily, latest_total) {
+            var divname = "div#".concat(region);
+            var firstcolor = "#a94352";
+            var secondcolor = "#69b3a2";
+
+            try {
+                // append a new row to hold this plot
+                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", region);
+
+                // label the div with the name of the region whose data we're processing
+                var div = d3.select(divname).text("").attr("text-anchor", "center");
+
+                // set the dimensions and margins of the graph
+                var margin = {top: 10, right: 90, bottom: 30, left: 60},
+                    width = chart_width - margin.left - margin.right,
+                    height = chart_height - margin.top - margin.bottom;
+
+                // insert an SVG object into the div to hold our plot
+                var svg = d3.select(divname)
+                    .append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform",
+                        "translate(" + margin.left + "," + margin.top + ")");
+
+                // Add X axis (range of dates in the data)
+                var x = d3.scaleTime()
+                    .domain(d3.extent(covid.map(d => d.day)))
+                    .range([0, width]);
+                svg.append("g")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(d3.axisBottom(x));
+
+                // Add Y axis for new case data
+                var y = d3.scaleLinear()
+                    .domain(d3.extent(covid.map(d => d[p1])))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisLeft(y))
+                    .style("fill", firstcolor);
+                // Add label for the first Y axis
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .style("font-family", "sans-serif")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 20)
+                    .attr("x", 0)
+                    .text(label1)
+                    .style("fill", firstcolor);
+
+                // add Y axis for death data
+                var yd = d3.scaleLinear()
+                    .domain(d3.extent(covid.map(d => d[p2])))
+                    .range([height, 0]);
+                svg.append("g")
+                    .call(d3.axisRight(yd))
+                    .attr("transform", "translate(" + width + ",0)")
+                    .style("fill", secondcolor);
+                // add label for the second y axis
+                svg.append("text")
+                    .attr("text-anchor", "start")
+                    .attr("transform", "rotate(90)")
+                    .attr("y", -width + 20)
+                    .attr("x", 0)
+                    .text(label2)
+                    .style("font-family", "sans-serif")
+                    .style("fill", secondcolor);
+                // Add chart title
+                var title = region + ": " + latest_daily + " Doses Administered (" + latest_total + " cumulative total)";
+                svg.append("text")
+                    .attr("text-anchor", "center")
+                    .attr("y", margin.top)
+                    .attr("x", width / 3)
+                    .text(title)
+                    .style("font-family", "sans-serif")
+                    .style("fill", "black");
+
+                // add tool tips to display values on a particular date
+                function bisect(data, date) {
+                    i = d3.bisector(d => d.day).left(data, Date.parse(date));
+                    i = data.length > i ? i : data.length - 1;
+                    const a = data[i - 1], b = data[i];
+                    return date - a.day > b.day - date ? b : a;
+                }
+                const tooltip = new Tooltip(svg, x, y, p1);
+                div.on( "mousemove", event => tooltip.show(bisect(covid, x.invert(event.offsetX-margin.left))))
+                    .on("mouseleave", event => tooltip.hide());
+
+                // Add first scatter plot
+                svg.append('g')
+                    .selectAll("dot")
+                    .data(covid)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function (d) {
+                        return x(d.day);
+                    })
+                    .attr("cy", function (d) {
+                        return y(d[p1]);
+                    })
+                    .attr("r", 1.5)
+                    .style("fill", firstcolor);
+
+                // add line plot of moving average
+                svg.append("path")
+                    .datum(covid)
+                    .attr("fill", "none")
+                    .attr("stroke", firstcolor)
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .defined(d => !isNaN(d[l1]))
+                        .x(d => x(d.day))
+                        .y(d => y(d[l1]))
+                    );
+                // Add scatter plot of new deaths
+                svg.append('g')
+                    .selectAll("dot")
+                    .data(covid)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", function (d) {
+                        return x(d.day);
+                    })
+                    .attr("cy", function (d) {
+                        return yd(d[p2]);
+                    })
+                    .attr("r", 1.5)
+                    .style("fill", secondcolor);
+
+                // add line plot of moving average
+                svg.append("path")
+                    .datum(covid)
+                    .attr("fill", "none")
+                    .attr("stroke", secondcolor)
+                    .attr("stroke-width", 1.5)
+                    .attr("d", d3.line()
+                        .defined(d => !isNaN(d[l2]))
+                        .x(d => x(d.day))
+                        .y(d => yd(d[l2]))
+                    );
+            }
+            catch(err) {
+                d3.select(divname).text(region.concat("<br>", err));
+            }
+
+        }
+
+        function display_selected() {
+            var view = document.getElementById("select_view").value;
+            var sort_by = document.getElementById("select_sort").value;
+
+            // sort the regions into the desired order
+            sort_helper.sort(dynamicSort(sort_by), inplace=true);
+
+            // remove the old rows
+            d3.select("tbody#plots").selectAll("tr").remove();
+
+            // display the items in the appropriately sorted order
+            if (view == "daily_doses") {
+                sort_helper.forEach(
+                    row => graph(row.region, data[row.region],
+                        "avaccine", "admin7day", "cumulative_avaccine", "cumulative_avaccine",
+                        "Daily Doses Administered", "Cumulative Doses Administered",
+                        row.administered, row.total_administered
+                    )
+                );
+            }
+        }
+
+        // convert "day" values to javascript date.  We need to do this only once.
+        regions.forEach(
+            function (region) {
+                var ss = data[region];
+                ss = ss.map(function (row, idx, arr) {
+                    row.day = Date.parse(row.day);
+                    return row;
+                });
+            }
+        )
+
+        display_selected();
+
+    </script>
+    <p>&nbsp;</p>
+    <hr>
+    <p>&nbsp;</p>
+    <p>Click on a column header to sort the table below.</p>
+    <table id="numeric_table">
+        <thead>
+        <tr>
+            <th rowspan="2" align="center" onclick="display_tabular_data('region')"> Province </th>
+            <th colspan="8" align="center">Date: {{ last_day }}</th>
+        </tr>
+        <tr>
+            <th onclick="display_tabular_data('-dvaccine')"> New Supply </th>
+            <th onclick="display_tabular_data('-avaccine')"> Doses Administered </th>
+            <th onclick="display_tabular_data('-cvaccine')"> Vaccinations Completed </th>
+            <th onclick="display_tabular_data('-cumulative_dvaccine')"> Total Doses Received </th>
+            <th onclick="display_tabular_data('-cumulative_avaccine')"> Total Doses Administered </th>
+            <th onclick="display_tabular_data('-cumulative_cvaccine')"> Total Vaccinations Completed </th>
+            <th onclick="display_tabular_data('-admin7day')"> Daily Doses Administered <br> 7 day avg </th>
+            <th onclick="display_tabular_data('-completed7day')"> Daily Vaccinations Completed <br> 7 day avg </th>
+        </tr>
+        </thead>
+        <tbody id="ntb"></tbody>
+    </table>
+
+    <script>
+        // select the table we're working on
+        var sort_table = d3.select("#numeric_table");
+        // add sort function to the table header
+        display_tabular_data("region");
+        function display_tabular_data(sort_by) {
+            // sort the data as requested
+            table_sort_helper.sort(dynamicSort(sort_by), inplace=true);
+
+            // add table rows
+            var sort_table = d3.select("#numeric_table").select("tbody");
+            sort_table.selectAll("tr").remove(); // remove the existing table contents
+            var tr = sort_table.selectAll("tr").data(table_sort_helper).enter().append("tr")
+                .selectAll("td")
+                .data(function(d) {
+                    return [d.region, d.received, d.administered, d.completed,
+                            d.total_received, d.total_administered, d.total_completed,
+                            d.admin7day, d.completed7day];})
+                .enter()
+                .append("td")
+                .attr("align", "right")
+                .text(function(d) {
+                    if (Number.isFinite(d) && !Number.isInteger(d)) {
+                        if (d < 1) {return d.toFixed(2);}
+                        return d.toFixed(1);
+                    } else {
+                        return d;
+                    }
+                });
+        }
+    </script>
+
+</body>
+</html>
