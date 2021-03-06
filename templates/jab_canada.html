@@ -100,6 +100,7 @@
             <td>
                 <select id="select_view" onchange="display_selected()">
                     <option value="daily_doses">New Doses administered</option>
+                    <option value="total_doses">Cumulative Doses administered and completed</option>
                 </select>
             </td>
         </tr>
@@ -145,10 +146,10 @@
               node.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + Math.round(0.2 * chart_height) + ")");
               this._circle.setAttribute("transform", "translate(" + this.scale_x(d.day) + "," + this.scale_y(d[this.field]) + ")")
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
-              this._line2.textContent = d3.format("d")(d["daily_doses"]) + " new doses";
-              this._line3.textContent = d3.format("d")(d["percapDailyDoses"]) + " new doses / 100k";
-              this._line4.textContent = d3.format(".2f")(d["percapDailyDoses7day"]) + " avg new doses/100k";
-              this._line5.textContent = d3.format(".2f")(d["total_doses"]) + " cumulative doses";
+              this._line2.textContent = d3.format("d")(d["avaccine"]) + " new doses";
+              this._line3.textContent = d3.format(".2f")(d["admin7day"]) + " new doses 7 day avg";
+              this._line4.textContent = d3.format(".2f")(d["cumulative_avaccine"]) + " cumulative doses administered";
+              this._line5.textContent = d3.format(".2f")(d["cumulative_cvaccine"]) + " cumulative vaccinations completed";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
@@ -321,6 +322,16 @@
                         "avaccine", "admin7day", "cumulative_avaccine", "cumulative_avaccine",
                         "Daily Doses Administered", "Cumulative Doses Administered",
                         row.administered, row.total_administered
+                    )
+                );
+            } else if (view == "total_doses") {
+                 sort_helper.forEach(
+                    row => graph(row.region, data[row.region],
+                        "cumulative_avaccine", "cumulative_avaccine",
+                        "cumulative_cvaccine", "cumulative_cvaccine",
+                        "Total Doses Administered",
+                        "Total Vaccinations Completed",
+                        row.total_administered, row.total_completed
                     )
                 );
             }
