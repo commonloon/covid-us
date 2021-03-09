@@ -23,6 +23,8 @@
                 "total_completed": Math.round(latest(data[region], "cumulative_cvaccine")),
                 "admin7day": Math.round(latest(data[region], "admin7day")),
                 "completed7day": Math.round(latest(data[region], "completed7day")),
+                "dosesPer100pop": Math.round(latest(data[region], "dosesPer100pop")),
+                "completedPer100pop": Math.round(latest(data[region], "completedPer100pop")),
         })
         );
         var table_sort_helper = [].concat(sort_helper);  // copy the sort_helper to use for the tabular display
@@ -101,15 +103,16 @@
                 <select id="select_view" onchange="display_selected()">
                     <option value="daily_doses">New Doses administered</option>
                     <option value="total_doses">Cumulative Doses administered and completed</option>
+                    <option value="progress" selected>Overall vaccination progress</option>
                 </select>
             </td>
         </tr>
         <tr><td>Sort by:</td><td>
             <select id="select_sort" onchange="display_selected()">
                 <option value="region">Alphabetical</option>
-                <option value="-percapTotalDoses">{{ last_day }} total doses / 100k pop</option>
                 <option value="-total_doses" selected>{{ last_day }} total doses </option>
-                <option value="-percapDailyDoses7day">{{ last_day }} daily new doses (7 day avg) </option>
+                <option value="-dosesPer100pop" selected> doses / 100 pop </option>
+                <option value="-completedPer100pop" selected> % completed </option>
             </select>
         </td></tr>
     </table>
@@ -331,6 +334,16 @@
                         "cumulative_cvaccine", "cumulative_cvaccine",
                         "Total Doses Administered",
                         "Total Vaccinations Completed",
+                        row.total_administered, row.total_completed
+                    )
+                );
+            } else if (view == "progress") {
+                 sort_helper.forEach(
+                    row => graph(row.region, data[row.region],
+                        "dosesPer100pop", "dosesPer100pop",
+                        "completedPer100pop", "completedPer100pop",
+                        "Doses Administered / 100 pop",
+                        "% of pop fully vaccinated",
                         row.total_administered, row.total_completed
                     )
                 );

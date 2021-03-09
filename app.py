@@ -566,6 +566,24 @@ def canada():
     prov_plus_map = prov_map.copy()
     prov_plus_map['Canada'] = 'Canada'
 
+    # population data by region
+    prov_pop = {
+        'Alberta': 4421876,
+        'BC': 5147712,
+        'Manitoba': 1379263,
+        'NL': 522103,
+        'NWT': 45161,
+        'New Brunswick': 781476,
+        'Nova Scotia': 979351,
+        'Nunavut': 39353,
+        'Ontario': 14734014,
+        'PEI': 159625,
+        'Quebec': 8574571,
+        'Saskatchewan': 1178681,
+        'Yukon': 42052,
+        'Canada': 38005238
+    }
+
     data = {}
     vaccine_data = {}
     for prov in provinces:
@@ -579,12 +597,12 @@ def canada():
         vr = v_received[v_received.province == prov][['day', 'dvaccine', 'cumulative_dvaccine']].copy()
         va = v_administered[v_administered.province == prov][['day', 'avaccine', 'cumulative_avaccine']].copy()
         vc = v_completed[v_completed.province == prov][['day', 'cvaccine', 'cumulative_cvaccine']].copy()
-        data[prov_map[prov]] = canada_to_dict(prov, c, d, t, a, h, i)
-        vaccine_data[prov_map[prov]] = canada_vaccine_to_dict(prov, vr, va, vc)
+        data[prov_map[prov]] = canada_to_dict(prov, prov_pop[prov], c, d, t, a, h, i)
+        vaccine_data[prov_map[prov]] = canada_vaccine_to_dict(prov, prov_pop[prov], vr, va, vc)
         pass
 
     # add the national data
-    data[prov_plus_map['Canada']] = canada_to_dict('Canada',
+    data[prov_plus_map['Canada']] = canada_to_dict('Canada', prov_pop['Canada'],
                                               national_cases.filter(['day', 'cases'], axis=1),
                                               national_deaths.filter(['day', 'deaths'], axis=1),
                                               national_tests.filter(['day', 'testing'], axis=1),
@@ -606,7 +624,7 @@ def canada():
     # return an HTTP redirect to the static file in S3
     return "<html><head><meta http-equiv=\"Refresh\" content=\"0; URL=http://covid.pacificloon.ca/canada.html\"></head><body><p>Updated canada.html</p></body></html>"
 
-def canada_vaccine_to_dict(province, vr, va, vc):
+def canada_vaccine_to_dict(province, prov_pop, vr, va, vc):
     """
 
     :param province:
@@ -623,6 +641,14 @@ def canada_vaccine_to_dict(province, vr, va, vc):
     s = pd.merge(vr, va, how='left', left_on=['day'], right_on=['day'])
     s = pd.merge(s,  vc, how='left', left_on=['day'], right_on=['day'])
 
+    # compute per capita
+    s['dosesPer100pop'] = 100.0 * s.cumulative_avaccine / prov_pop
+    s['completedPer100pop'] = 100.0 * s.cumulative_cvaccine / prov_pop
+
+    # scale the graphs appropriately by lying about the zeroth entry
+    s['dosesPer100pop'].iloc[0] = 25
+    s['completedPer100pop'].iloc[0] = 25
+
     # compute any 7 day averages
     s['admin7day'] = s.avaccine.rolling(7).mean()
     s['completed7day'] = s.cvaccine.rolling(7).mean()
@@ -636,7 +662,7 @@ def canada_vaccine_to_dict(province, vr, va, vc):
     return s.to_dict(orient='records')
 
 
-def canada_to_dict(province, c, d, t, a, h, i):
+def canada_to_dict(province, prov_pop, c, d, t, a, h, i):
     """
     Canadian data comes from several different files that need to be bundled up
     into a dict to be passed to the rendering template.
@@ -680,25 +706,9 @@ def canada_to_dict(province, c, d, t, a, h, i):
     s['active7day'] = s.TotalActive.rolling(7).mean()
     s['icu7day'] = s.TotalICU.rolling(7).mean()
 
-    prov_pop = {
-        'Alberta': 4421876,
-        'BC': 5147712,
-        'Manitoba': 1379263,
-        'NL': 522103,
-        'NWT': 45161,
-        'New Brunswick': 781476,
-        'Nova Scotia': 979351,
-        'Nunavut': 39353,
-        'Ontario': 14734014,
-        'PEI': 159625,
-        'Quebec': 8574571,
-        'Saskatchewan': 1178681,
-        'Yukon': 42052,
-        'Canada': 38005238
-    }
-    s['perCapCases'] = s.cases * 100000 / prov_pop[province]
+    s['perCapCases'] = s.cases * 100000 / prov_pop
     s['perCapCases7day'] = s.perCapCases.rolling(7).mean()
-    s['perCapDeaths'] = s.deaths * 100000 / prov_pop[province]
+    s['perCapDeaths'] = s.deaths * 100000 / prov_pop
     s['perCapDeaths7day'] = s.perCapDeaths.rolling(7).mean()
 
     s['day'] = s['day'].dt.strftime('%Y-%m-%d')
