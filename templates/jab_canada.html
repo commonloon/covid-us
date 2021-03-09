@@ -88,8 +88,6 @@
     </h2>
     <p>Lines show 7 day moving averages, while points show the raw data.</p>
     <p>Values given in graph titles are the latest 7 day moving averages.</p>
-    <p>"/100k pop" values are calculated using <a href="static/2019_pop.csv">2019 population estimates</a>.
-        I forget where I got them from; I think wikipedia.</p>
 
      <h2>Source for the app that generates these files is found in github at
         <a href="https://github.com/commonloon/covid-us">commonloon/covid-us</a>
@@ -229,7 +227,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = region + ": " + latest_daily + " Doses Administered (" + latest_total + " cumulative total)";
+                var title = region + ": " + latest_daily + " Doses Administered (" + latest_total + " vaccinations completed)";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
