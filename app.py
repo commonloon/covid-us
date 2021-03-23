@@ -188,14 +188,18 @@ def plot_worldwide_totals(df, last_day, title, headline, source_data_url):
     write_html_to_s3(rendered, "worldwide.html", "covid.pacificloon.ca")
 
 
-def plot_vaccinations(df, countries, output_filename,
-                          title,
-                          headline,
-                          source_data_url):
+def plot_vaccinations(df,
+                      regions, regions_map, skip_regions,
+                      output_filename,
+                      title,
+                      headline,
+                      source_data_url):
     """
 
     :param df: dataframe containing the relevant data
-    :param countries: list of countries to plot
+    :param regions: list of regions to plot
+    :param regions_map: list of regions to plot
+    :param skip_regions: list of regions to plot
     :param output_filename: name of the resulting HTML file in the S3 bucket
     :param last_day: day when the source data was last updated
     :param max_per_capita: used to set a fixed scale for plots of per capita data, so countries compare easily
@@ -203,27 +207,38 @@ def plot_vaccinations(df, countries, output_filename,
     """
     last_day = max(df.day)
     data = {}
-    for country in countries:
+    columns = ['day', 'region',
+               'total_vaccinations', 'people_vaccinated',
+               'people_fully_vaccinated', 'daily_vaccinations',
+               'people_vaccinated_per_hundred', 'people_fully_vaccinated_per_hundred',
+               'dailyDoses7day'
+               ]
+    for region in regions:
+        if region in skip_regions:
+            continue
+
         try:
-            s = df.loc[df.country == country, ['day',
-                                              'daily_doses', 'total_doses',
-                                              'percapDailyDoses', 'dailyDoses7day',
-                                              'percapTotalDoses', 'percapDailyDoses7day']]
+            if region in regions_map:
+                s = df.loc[df.region == regions_map[region], columns]
+            else:
+                s = df.loc[df.region == region, columns]
         except Exception as e:
             print(e)
             raise e
         s.sort_values(by='day', inplace=True)
 
-        data[country] = s.to_dict(orient='records')
+        data[region] = s.to_dict(orient='records')
 
     # render the HTML file and save it to S3
     rendered = render_template("jab.html",
-                               countries=countries.tolist(),
+                               regions=regions,
                                data=data,
+                               columns=columns,
                                last_day=last_day,
                                title=title,
                                headline=headline,
-                               source_data_url=source_data_url)
+                               source_data_url=source_data_url
+                               )
     write_html_to_s3(rendered, output_filename, "covid.pacificloon.ca")
 
 
@@ -232,8 +247,7 @@ def munge_vaccine_data(pop):
     Get cumulative COVID vaccination data from disease.sh and process it to get per-day values
     :return:
     """
-    source_url = 'https://disease.sh/v3/covid-19/vaccine/coverage/countries?lastdays=365'
-
+    source_url = 'https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv'
     header = {
         "User-Agent":
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",
@@ -243,61 +257,83 @@ def munge_vaccine_data(pop):
     r = requests.get(source_url, headers=header)
 
     # make a dataframe of the case data
-    df = pd.read_json(r.text)
-    countries = df.country.unique()
+    df = pd.read_csv(source_url)
+    regions = df.location.unique()
 
+    # some regions have slightly different names in different data sources
+    regions_map = {
+        'Cote d\'Ivoire': 'Cote dIvoire',
+        'Faeroe Islands': 'Faroe Islands',
+        'Turks and Caicos Islands': 'Turks and Caicos islands',
+        'United States': 'USA',
+    }
+    skip_regions = [
+        'Northern Cyprus',
+        'Saint Helena',
+        'World',
+    ]
+    regions = [r for r in regions if r not in skip_regions]
+
+    # construct a dict that we can convert to json
     data = None
-    for country in countries:
-        country_data = None
-        s = df[df.country == country]
-        p = pop[pop.region == country]
+    for region in regions:
+        if region in skip_regions:
+            continue
+        region_data = None
         try:
-            pop100k = p.pop2019.iloc(0)[0] / 100000.0  # country population in hundred thousands
+            s = df[df.location == region]
+            if region in regions_map:
+                p = pop[pop.region == regions_map[region]]
+            else:
+                p = pop[pop.region == region]
+            pop100k = p.pop2019.iloc(0)[0] / 100000.0  # region population in hundred thousands
         except Exception as e:
             # skip regions for which I don't have population data in my file (derived from the ECDC data).
             # I could find population data for these regions, but they're not ones I care about plotting
             continue
 
+        s['day'] = s.date
+        if region in regions_map:
+            s['region'] = regions_map[region]
+        else:
+            s['region'] = region
+        # ignore regions that we fail to process for some reason
         try:
-            # v is the cumulative total of vaccine doses delivered
-            v = pd.Series(s[s.country == country].timeline.iloc(0)[0], name='total_doses')
-            daily = v.diff().rename('daily_doses')
-            daily.drop(daily.index[0], inplace=True) # first value is always a NaN
-            v.drop(v.index[0], inplace=True) # match length of daily series
-            country_data = pd.merge(v, daily, left_index=True, right_index=True)
+            region_data = s[['day', 'region', 'total_vaccinations', 'people_vaccinated', 'people_fully_vaccinated',
+                             'daily_vaccinations', 'people_vaccinated_per_hundred', 'people_fully_vaccinated_per_hundred']]
 
-            # add the day as a column in a sortable string format
-            country_data['day'] = country_data.index
-            country_data['day'] = pd.to_datetime(country_data['day'].apply(str), dayfirst=False)
-            country_data['day'] = country_data['day'].dt.strftime('%Y-%m-%d')
+            # Javascript doesn't like NaNs.
+            # For cumulative values, w use the previous value if available.
+            # For daily values, we substitute zeros
+            region_data['daily_vaccinations'].fillna(0, inplace=True)  # this is the only per day value
+            region_data.fillna(method='ffill', inplace=True)
+            region_data.fillna(0, inplace=True)  # replace remaining NaNs with zero.
 
-            # add in the country name and compute moving averages
-            country_data['country'] = country
+            # compute moving averages
             try:
-                country_data['percapTotalDoses'] = country_data.total_doses / pop100k
-                country_data['percapDailyDoses'] = country_data.daily_doses / pop100k
-                country_data['dailyDoses7day'] = country_data.daily_doses.rolling(7).mean()
-                country_data['percapDailyDoses7day'] = country_data.percapDailyDoses.rolling(7).mean()
+                region_data['dailyDoses7day'] = region_data.daily_vaccinations.rolling(7).mean()
             except Exception as e:
-                print(country + ' ' + str(e))
-                continue  # skip countries that throw errors
+                print(region + ' ' + str(e))
+                continue  # skip regions that throw errors
         except Exception as e:
-            print(country + ' ' + str(e))
+            print(region + ' ' + str(e))
             continue
         pass
 
-        # append the data for this country to the main dataframe
+        # The first few days of the 7 day moving averages will typically be NaN, but it
+        # should be fine to set them to zero
+        region_data['dailyDoses7day'].replace(inf, 0, inplace=True)
+
+
+        # append the data for this region to the main dataframe
         if data is None:
-            data = country_data
+            data = region_data
         else:
-            data = data.append(country_data)
+            data = data.append(region_data)
 
-    # The first few days of the 7 day moving averages will typically be NaN, but it
-    # should be fine to set them to zero
-    data['dailyDoses7day'].replace(inf, nan, inplace=True)
-    data['percapDailyDoses7day'].replace(inf, nan, inplace=True)
-
-    plot_vaccinations(data, countries, "jabs.html", "Vaccinations", "Vaccination Status", source_url)
+    plot_vaccinations(data,
+                      regions, regions_map, skip_regions,
+                      "jabs.html", "Vaccinations", "Vaccination Status", source_url)
 
     return
 
