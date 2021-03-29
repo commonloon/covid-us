@@ -127,18 +127,19 @@
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-45").attr("width", "90").attr("y", "-52").attr("height", "54").attr("fill", "white");
-            this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
-            this._line2 = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
-            this._line3 = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
-            this._line4 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
-            this._line5 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
+                .attr("x", "-55").attr("width", "110").attr("y", "-72").attr("height", "74").attr("fill", "white");
+            this._day = this.node.append("text").attr("y", "-62").attr("background-color", "white").node();
+            this._line2 = this.node.append("text").attr("y", "-52").attr("background-color", "white").node();
+            this._line3 = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
+            this._line4 = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
+            this._line5 = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
+            this._line6 = this.node.append("text").attr("y", "-12").attr("background-color", "white").node();
+            this._line7 = this.node.append("text").attr("y", "-2").attr("background-color", "white").node();
             this._circle = svg.append("circle").attr("r", "2.5").node();  // _circle is an HTML node, not a D3 object
             this.scale_x = x;
             this.scale_y = y;
             this.field = field;
           }
-
           show(d) {
               var node = this.node.node();
               node.removeAttribute("display");
@@ -149,7 +150,9 @@
               this._line2.textContent = d3.format("d")(d["daily_vaccinations"]) + " new doses";
               this._line3.textContent = d3.format(".2f")(d["dailyDoses7day"]) + " avg new doses";
               this._line4.textContent = d3.format("d")(d["total_vaccinations"]) + " cumulative doses";
-              this._line5.textContent = d3.format(".1f")(d["people_fully_vaccinated_per_hundred"]) + " people fully vaccinated / 100";
+              this._line5.textContent = d3.format(".1f")(d["people_vaccinated"]) + " people vaccinated";
+              this._line6.textContent = d3.format(".1f")(d["people_vaccinated_per_hundred"]) + " people  vaccinated / 100";
+              this._line7.textContent = d3.format(".1f")(d["people_fully_vaccinated_per_hundred"]) + " people fully vaccinated / 100";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
