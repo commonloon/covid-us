@@ -93,8 +93,9 @@
           }
         }
 
-        function graph(country, covid, p1, l1, p2, l2, label1, label2) {
-            var divname = "div#".concat(country);
+        function graph(region, covid, p1, l1, p2, l2, label1, label2) {
+            var rstripped = region.replace(/[' ]/g,"")
+            var divname = "div#".concat(rstripped);
             var firstcolor = "#a94352";
             var secondcolor = "#69b3a2";
 
@@ -102,9 +103,9 @@
 
             try {
                 // append a new row to hold this plot
-                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", country);
+                d3.select("tbody#plots").append("tr").insert('td').insert("div").attr("id", rstripped);
 
-                // label the div with the name of the country whose data we're processing
+                // label the div with the name of the region whose data we're processing
                 var div = d3.select(divname).text("").attr("text-anchor", "center");
 
                 // set the dimensions and margins of the graph
@@ -164,7 +165,7 @@
                     .style("font-family", "sans-serif")
                     .style("fill", secondcolor);
                 // Add chart title
-                var title = country + ": " + latest_cases + " New Cases";
+                var title = region + ": " + latest_cases + " New Cases";
                 svg.append("text")
                     .attr("text-anchor", "center")
                     .attr("y", margin.top)
@@ -238,7 +239,7 @@
                     );
             }
             catch(err) {
-                d3.select(divname).text(country.concat("<br>", err));
+                d3.select(divname).text(region.concat("<br>", err));
             }
 
         }
