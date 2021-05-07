@@ -128,7 +128,7 @@
                 .attr("font-family", "sans-serif")
                 .attr("font-size", "10").attr("text-anchor", "middle");
             this.node.append("rect")
-                .attr("x", "-45").attr("width", "90").attr("y", "-52").attr("height", "54").attr("fill", "white");
+                .attr("x", "-60").attr("width", "120").attr("y", "-52").attr("height", "54").attr("fill", "white");
             this._day = this.node.append("text").attr("y", "-42").attr("background-color", "white").node();
             this._line2 = this.node.append("text").attr("y", "-32").attr("background-color", "white").node();
             this._line3 = this.node.append("text").attr("y", "-22").attr("background-color", "white").node();
@@ -149,8 +149,8 @@
               this._day.textContent = d3.utcFormat("%b %-d, '%y")(d.day);
               this._line2.textContent = d3.format("d")(d["avaccine"]) + " new doses";
               this._line3.textContent = d3.format(".2f")(d["admin7day"]) + " new doses 7 day avg";
-              this._line4.textContent = d3.format(".2f")(d["cumulative_avaccine"]) + " cumulative doses administered";
-              this._line5.textContent = d3.format(".2f")(d["cumulative_cvaccine"]) + " cumulative vaccinations completed";
+              this._line4.textContent = d3.format(".1f")(d["dosesPer100pop"]) + " doses / 100 pop";
+              this._line5.textContent = d3.format(".1f")(d["completedPer100pop"]) + " completed / 100 pop";
           }
           hide() {
             this.node.node().setAttribute("display", "none");
