@@ -271,6 +271,12 @@ def munge_vaccine_data(pop):
         'Northern Cyprus',
         'Saint Helena',
         'World',
+        'Europe',
+        'North America',
+        'High income',
+        'Low income',
+        'Lower middle income',
+        'Oceania',
     ]
     regions = [r for r in regions if r not in skip_regions]
 
@@ -308,6 +314,11 @@ def munge_vaccine_data(pop):
             region_data['daily_vaccinations'].fillna(0, inplace=True)  # this is the only per day value
             region_data.fillna(method='ffill', inplace=True)
             region_data.fillna(0, inplace=True)  # replace remaining NaNs with zero.
+
+            if region == 'China':
+                region_data.people_vaccinated = region_data.total_vaccinations
+                region_data.people_vaccinated_per_hundred = 100.0 * region_data.people_vaccinated / p.pop2019.iloc(0)[0]
+                pass
 
             # compute moving averages
             try:
@@ -347,7 +358,7 @@ def world():
     munge_vaccine_data(pop)
 
     # read the data source
-    url = 'https://disease.sh/v3/covid-19/historical?lastdays=365'
+    url = 'https://disease.sh/v3/covid-19/historical?lastdays=500'
 
     header = {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.75 Safari/537.36",

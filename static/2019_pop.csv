@@ -1,5 +1,6 @@
 region,pop2019,zone
 Afghanistan,38041757,Asia
+Africa,1308000000,Africa
 Albania,2862427,Europe
 Algeria,43053054,Africa
 Andorra,76177,Europe
@@ -9,6 +10,7 @@ Antigua and Barbuda,97115,America
 Argentina,44780675,America
 Armenia,2957728,Europe
 Aruba,106310,America
+Asia,4601000000,Asia
 Australia,25203200,Oceania
 Austria,8858775,Europe
 Azerbaijan,10047719,Europe
@@ -67,7 +69,8 @@ Eritrea,3497117,Africa
 Estonia,1324820,Europe
 Eswatini,1148133,Africa
 Ethiopia,112078727,Africa
-European Union, 448000000,Europe
+European Union,448000000,Europe
+Europe,448000000,Europe
 Falkland Islands (Malvinas),3372,America
 Falkland Islands,3372,America
 Faroe Islands,48677,Europe
